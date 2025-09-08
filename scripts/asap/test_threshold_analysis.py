@@ -5,7 +5,7 @@ Test script for threshold analysis pipeline with random population data.
 import logging
 import pandas as pd
 
-from src.threshold_analyzer import ThresholdAnalyzer
+from src.asap.threshold_analyzer import ThresholdAnalyzer
 
 # Configure logging
 logging.basicConfig(

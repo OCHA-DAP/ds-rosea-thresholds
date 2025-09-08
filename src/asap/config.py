@@ -1,22 +1,22 @@
 """
-Configuration file for ds-rosea-thresholds project.
+Configuration file for ASAP indicator module.
 Contains constants, file paths, and processing parameters.
 """
 from pathlib import Path
 
 # Project paths
-PROJECT_ROOT = Path(__file__).parent.parent
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
-RAW_DATA_DIR = DATA_DIR / "raw"
-PROCESSED_DATA_DIR = DATA_DIR / "processed"
+ASAP_RAW_DATA_DIR = DATA_DIR / "raw" / "asap"
+ASAP_PROCESSED_DATA_DIR = DATA_DIR / "processed" / "asap"
 
 # Input file paths
-WARNINGS_FILE = RAW_DATA_DIR / "warnings_l2_ts.csv"
-WORLDPOP_FILE = RAW_DATA_DIR / "worldpop_asap_l2_zmean.csv"
+WARNINGS_FILE = ASAP_RAW_DATA_DIR / "warnings_l2_ts.csv"
+WORLDPOP_FILE = ASAP_RAW_DATA_DIR / "worldpop_asap_l2_zmean.csv"
 
 # Output file paths
-FILTERED_WARNINGS_FILE = PROCESSED_DATA_DIR / "warnings_filtered.csv"
-COMBINED_DATA_FILE = PROCESSED_DATA_DIR / "combined_analysis_data.csv"
+FILTERED_WARNINGS_FILE = ASAP_PROCESSED_DATA_DIR / "warnings_filtered.csv"
+COMBINED_DATA_FILE = ASAP_PROCESSED_DATA_DIR / "combined_analysis_data.csv"
 
 # Target countries for analysis
 TARGET_COUNTRIES = [
@@ -52,7 +52,7 @@ WARNING_HIERARCHY_REVERSE = {v: k for k, v in WARNING_LEVEL_HIERARCHY.items()}
 WARNING_THRESHOLDS = [1, 2, 3, 4]  # Warning group 1+, 2+, 3+, 4+
 
 # Output file paths for threshold analysis
-THRESHOLD_ANALYSIS_DIR = PROCESSED_DATA_DIR / "threshold_analysis"
+THRESHOLD_ANALYSIS_DIR = ASAP_PROCESSED_DATA_DIR / "threshold_analysis"
 MONTHLY_EXPOSURE_FILE = THRESHOLD_ANALYSIS_DIR / "monthly_country_exposure.csv"
 POPULATION_TEST_FILE = THRESHOLD_ANALYSIS_DIR / "admin2_test_populations.csv"
 

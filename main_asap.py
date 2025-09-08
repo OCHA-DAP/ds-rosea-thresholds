@@ -5,7 +5,7 @@ Main entry point for ds-rosea-thresholds analysis.
 import logging
 from pathlib import Path
 
-from src.threshold_analyzer import ThresholdAnalyzer
+from src.asap.threshold_analyzer import ThresholdAnalyzer
 
 # Configure logging
 logging.basicConfig(

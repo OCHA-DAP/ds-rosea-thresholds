@@ -9,7 +9,7 @@ import logging
 import time
 import duckdb
 
-from src.config import (
+from src.asap.config import (
     WARNINGS_FILE, FILTERED_WARNINGS_FILE, TARGET_COUNTRIES,
     WARNINGS_SEPARATOR, WARNINGS_COUNTRY_COL
 )

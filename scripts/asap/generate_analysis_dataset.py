@@ -7,7 +7,7 @@ import logging
 import pandas as pd
 from pathlib import Path
 
-from src.threshold_analyzer import ThresholdAnalyzer
+from src.asap.threshold_analyzer import ThresholdAnalyzer
 
 # Configure logging
 logging.basicConfig(
@@ -57,7 +57,8 @@ def main():
         analysis_df = analysis_df.sort_values(['country', 'date'])
         
         # Save clean dataset
-        output_file = Path('data/processed/threshold_analysis/rosea_monthly_exposure_analysis.csv')
+        output_file = Path('data/processed/asap/threshold_analysis/rosea_monthly_exposure_analysis.csv')
+        output_file.parent.mkdir(parents=True, exist_ok=True)
         analysis_df.to_csv(output_file, index=False)
         
         # Generate summary report
