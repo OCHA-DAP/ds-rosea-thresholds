@@ -5,7 +5,7 @@ Main entry point for ds-rosea-thresholds analysis.
 import logging
 from pathlib import Path
 
-from src.data_processor import DataProcessor
+from src.threshold_analyzer import ThresholdAnalyzer
 
 # Configure logging
 logging.basicConfig(
@@ -20,38 +20,39 @@ def main():
     logger.info("Starting ROSEA thresholds analysis")
     
     try:
-        # Initialize data processor
-        processor = DataProcessor()
+        # Initialize threshold analyzer with real population data
+        analyzer = ThresholdAnalyzer(use_random_population=False)
         
-        # Run complete processing pipeline
-        combined_data = processor.process_all()
+        # Run complete threshold analysis pipeline
+        monthly_exposure = analyzer.run_full_analysis()
         
         # Display summary
-        summary = processor.get_data_summary()
-        print("\n" + "="*50)
-        print("DATA PROCESSING SUMMARY")
-        print("="*50)
+        summary = analyzer.get_summary_stats()
+        print("\n" + "="*60)
+        print("ROSEA THRESHOLD ANALYSIS SUMMARY")
+        print("="*60)
         
-        if 'warnings' in summary:
-            print(f"Warnings data: {summary['warnings']['total_records']:,} records")
-            print(f"Countries in warnings: {summary['warnings']['countries']}")
-            if summary['warnings']['date_range']['min']:
-                print(f"Date range: {summary['warnings']['date_range']['min']} to {summary['warnings']['date_range']['max']}")
+        print(f"Total country-months analyzed: {summary['total_country_months']:,}")
+        print(f"Countries: {summary['countries']}")
+        print(f"Time period: {summary['date_range']['start']} to {summary['date_range']['end']}")
         
-        if 'worldpop' in summary:
-            print(f"Population data: {summary['worldpop']['total_records']:,} records")
-            print(f"Countries in population: {summary['worldpop']['countries']}")
-            if summary['worldpop']['total_population']:
-                print(f"Total population: {summary['worldpop']['total_population']:,.0f}")
+        print(f"\nAverage monthly population exposure:")
+        for threshold in [1, 2, 3, 4]:
+            key = f'avg_pop_warning_{threshold}_plus'
+            if key in summary:
+                print(f"  Warning Group {threshold}+: {summary[key]:,} people")
         
-        if 'combined' in summary:
-            print(f"Combined data: {summary['combined']['total_records']:,} records")
-            print(f"Countries matched: {summary['combined']['countries']}")
+        # Show top 5 countries by average Warning Group 2+ exposure
+        print(f"\nTop countries by Warning Group 2+ exposure:")
+        country_summary = monthly_exposure.groupby('country')['pct_warning_2_plus'].mean().sort_values(ascending=False)
+        for country, pct in country_summary.head(5).items():
+            pop = monthly_exposure[monthly_exposure['country'] == country]['pop_warning_2_plus'].mean()
+            print(f"  {country}: {pct:.1f}% ({pop:,.0f} people)")
         
-        print("="*50)
-        logger.info("Analysis setup complete!")
+        print("="*60)
+        logger.info("ROSEA threshold analysis complete!")
         
-        return combined_data
+        return monthly_exposure
         
     except Exception as e:
         logger.error(f"Error in analysis: {e}")

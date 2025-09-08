@@ -8,8 +8,8 @@ from typing import Optional
 
 from .config import (
     FILTERED_WARNINGS_FILE, WORLDPOP_FILE, COMBINED_DATA_FILE,
-    WARNINGS_SEPARATOR, WORLDPOP_SEPARATOR,
-    WARNINGS_COUNTRY_COL, WORLDPOP_COUNTRY_COL,
+    WARNINGS_SEPARATOR, WORLDPOP_SEPARATOR, POPULATION_COL,
+    WARNINGS_COUNTRY_COL, WARNINGS_ADMIN2_COL,
     TARGET_COUNTRIES
 )
 
@@ -42,18 +42,18 @@ class DataProcessor:
         logger.info(f"Loaded {len(self.warnings_data):,} warning records")
         return self.warnings_data
     
-    def load_worldpop_data(self) -> pd.DataFrame:
-        """Load the worldpop data."""
-        logger.info(f"Loading worldpop data from {WORLDPOP_FILE}")
+    def load_population_data(self) -> pd.DataFrame:
+        """Load the population data."""
+        logger.info(f"Loading population data from {WORLDPOP_FILE}")
         
         self.worldpop_data = pd.read_csv(
             WORLDPOP_FILE,
             sep=WORLDPOP_SEPARATOR
         )
         
-        # Filter worldpop data to target countries only
+        # Filter population data to target countries only
         self.worldpop_data = self.worldpop_data[
-            self.worldpop_data[WORLDPOP_COUNTRY_COL].isin(TARGET_COUNTRIES)
+            self.worldpop_data['name0'].isin(TARGET_COUNTRIES)
         ]
         
         logger.info(f"Loaded {len(self.worldpop_data):,} population records")
@@ -72,18 +72,18 @@ class DataProcessor:
         if self.warnings_data is None:
             self.load_filtered_warnings()
         if self.worldpop_data is None:
-            self.load_worldpop_data()
+            self.load_population_data()
         
         logger.info("Combining datasets...")
         
-        # Merge on country name
+        # Merge on admin 2 level codes
         self.combined_data = pd.merge(
             self.warnings_data,
             self.worldpop_data,
-            left_on=WARNINGS_COUNTRY_COL.strip('"'),
-            right_on=WORLDPOP_COUNTRY_COL,
+            left_on=WARNINGS_ADMIN2_COL,
+            right_on=WARNINGS_ADMIN2_COL,
             how=how,
-            suffixes=('_warnings', '_worldpop')
+            suffixes=('_warnings', '_population')
         )
         
         logger.info(f"Combined dataset contains {len(self.combined_data):,} records")
@@ -139,7 +139,7 @@ class DataProcessor:
         logger.info("Starting complete data processing pipeline...")
         
         self.load_filtered_warnings()
-        self.load_worldpop_data()
+        self.load_population_data()
         self.combine_datasets()
         self.save_combined_data()
         
