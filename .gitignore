@@ -210,3 +210,6 @@ __marimo__/
 Data/
 claude.md
 .claudeignore
+exploration/asap/01_visualize_historical_asap_exposure_files/
+*.png
+*.html
