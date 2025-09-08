@@ -270,44 +270,29 @@ class ThresholdAnalyzer:
         logger.info(f"Monthly exposure data saved to local file: {output_file}")
     
     def _save_exposure_to_blob(self):
-        """Save monthly exposure data to Azure blob storage."""
+        """Save monthly exposure data to Azure blob storage using fsspec."""
         if not validate_azure_config():
             raise ValueError("Invalid Azure configuration for blob storage")
         
-        # For blob storage, we need to save locally first, then upload
-        # This is because pandas.to_csv doesn't support direct blob writing
-        import tempfile
-        import os
-        
         try:
-            # Create temporary file
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as temp_file:
-                temp_path = temp_file.name
+            import fsspec
+            from src.asap.azure_config import STORAGE_ACCOUNT, SAS_TOKEN, CONTAINER
+            
+            # Build fsspec path
+            blob_path = f"abfs://projects@{STORAGE_ACCOUNT}.dfs.core.windows.net/ds-rosea-thresholds/processed/asap/threshold_analysis/monthly_country_exposure.csv"
+            
+            # Create filesystem with SAS token
+            fs = fsspec.filesystem('abfs', account_name=STORAGE_ACCOUNT, sas_token=SAS_TOKEN)
+            
+            # Save directly to blob using fsspec
+            with fs.open(blob_path, 'w') as f:
+                self.monthly_exposure.to_csv(f, index=False)
                 
-            # Save to temporary file
-            self.monthly_exposure.to_csv(temp_path, index=False)
-            
-            # Upload to blob using DuckDB
-            blob_url = get_monthly_exposure_url()
-            
-            query = f"""
-            COPY (
-                SELECT * FROM '{temp_path}'
-            ) TO '{blob_url}' (DELIMITER ',', HEADER)
-            """
-            
-            with get_azure_connection() as conn:
-                conn.execute(query)
-                
-            logger.info(f"Monthly exposure data saved to blob: {blob_url}")
+            logger.info(f"Monthly exposure data saved to blob using fsspec: {blob_path}")
             
         except Exception as e:
             logger.error(f"Failed to save exposure data to blob: {e}")
             raise
-        finally:
-            # Clean up temporary file
-            if 'temp_path' in locals() and os.path.exists(temp_path):
-                os.unlink(temp_path)
     
     def get_summary_stats(self) -> Dict:
         """Get summary statistics of the threshold analysis."""
