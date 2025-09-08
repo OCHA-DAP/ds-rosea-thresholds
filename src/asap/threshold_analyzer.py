@@ -16,6 +16,11 @@ from .config import (
     THRESHOLD_ANALYSIS_DIR, MONTHLY_EXPOSURE_FILE, POPULATION_TEST_FILE,
     RANDOM_POP_SEED, RANDOM_POP_MIN, RANDOM_POP_MAX
 )
+from .azure_config import (
+    USE_BLOB_STORAGE, validate_azure_config,
+    get_filtered_warnings_url, get_worldpop_url, get_monthly_exposure_url
+)
+from .blob_utils import get_azure_connection, execute_blob_query
 
 logger = logging.getLogger(__name__)
 
@@ -67,11 +72,44 @@ class ThresholdAnalyzer:
         return pop_df
     
     def load_warnings_data(self) -> pd.DataFrame:
-        """Load and prepare warnings data."""
-        logger.info(f"Loading warnings data from {FILTERED_WARNINGS_FILE}")
+        """Load and prepare warnings data from local file or blob storage."""
+        if USE_BLOB_STORAGE:
+            return self._load_warnings_from_blob()
+        else:
+            return self._load_warnings_from_local()
+    
+    def _load_warnings_from_local(self) -> pd.DataFrame:
+        """Load warnings data from local file."""
+        logger.info(f"Loading warnings data from local file: {FILTERED_WARNINGS_FILE}")
         
         self.warnings_data = pd.read_csv(FILTERED_WARNINGS_FILE, sep=WARNINGS_SEPARATOR)
+        return self._process_warnings_data()
+    
+    def _load_warnings_from_blob(self) -> pd.DataFrame:
+        """Load warnings data from Azure blob storage."""
+        if not validate_azure_config():
+            raise ValueError("Invalid Azure configuration for blob storage")
+            
+        warnings_url = get_filtered_warnings_url()
+        logger.info(f"Loading warnings data from blob: {warnings_url}")
         
+        # Use DuckDB to read directly from blob
+        query = f"""
+        SELECT * FROM '{warnings_url}'
+        """
+        
+        try:
+            with get_azure_connection() as conn:
+                result = conn.execute(query).fetchdf()
+                self.warnings_data = result
+                return self._process_warnings_data()
+                
+        except Exception as e:
+            logger.error(f"Failed to load warnings from blob: {e}")
+            raise
+    
+    def _process_warnings_data(self) -> pd.DataFrame:
+        """Common processing for warnings data regardless of source."""
         # Convert date column
         self.warnings_data['date'] = pd.to_datetime(self.warnings_data['date'])
         self.warnings_data['year_month'] = self.warnings_data['date'].dt.to_period('M')
@@ -87,18 +125,51 @@ class ThresholdAnalyzer:
         return self.warnings_data
     
     def load_real_population_data(self) -> pd.DataFrame:
-        """Load real population data from worldpop_asap_l2_zmean.csv."""
-        logger.info(f"Loading population data from {WORLDPOP_FILE}")
+        """Load real population data from local file or blob storage."""
+        if USE_BLOB_STORAGE:
+            return self._load_population_from_blob()
+        else:
+            return self._load_population_from_local()
+    
+    def _load_population_from_local(self) -> pd.DataFrame:
+        """Load population data from local file."""
+        logger.info(f"Loading population data from local file: {WORLDPOP_FILE}")
         
         pop_df = pd.read_csv(WORLDPOP_FILE)
+        return self._process_population_data(pop_df)
+    
+    def _load_population_from_blob(self) -> pd.DataFrame:
+        """Load population data from Azure blob storage."""
+        if not validate_azure_config():
+            raise ValueError("Invalid Azure configuration for blob storage")
+            
+        worldpop_url = get_worldpop_url()
+        logger.info(f"Loading population data from blob: {worldpop_url}")
         
+        # Use DuckDB to read directly from blob
+        query = f"""
+        SELECT * FROM '{worldpop_url}'
+        """
+        
+        try:
+            with get_azure_connection() as conn:
+                result = conn.execute(query).fetchdf()
+                return self._process_population_data(result)
+                
+        except Exception as e:
+            logger.error(f"Failed to load population from blob: {e}")
+            raise
+    
+    def _process_population_data(self, pop_df: pd.DataFrame) -> pd.DataFrame:
+        """Common processing for population data regardless of source."""
         # Select and rename columns to match expected format
         pop_df = pop_df[[WARNINGS_ADMIN2_COL, POPULATION_COL, 'name0', 'name2']].rename(
             columns={POPULATION_COL: 'population', 'name0': 'country', 'name2': 'admin2_name'}
         )
         
         # Add data source marker
-        pop_df['data_source'] = 'worldpop_2020'
+        data_source = 'worldpop_2020_blob' if USE_BLOB_STORAGE else 'worldpop_2020_local'
+        pop_df['data_source'] = data_source
         
         logger.info(f"Loaded {len(pop_df):,} real population records")
         logger.info(f"Coverage: {pop_df['population'].sum():,.0f} total population")
@@ -183,13 +254,60 @@ class ThresholdAnalyzer:
         return self.monthly_exposure
     
     def save_monthly_exposure(self, output_file: Optional[Path] = None):
-        """Save monthly exposure data to CSV."""
+        """Save monthly exposure data to CSV in local file or blob storage."""
         if self.monthly_exposure is None:
             raise ValueError("No monthly exposure data to save. Run calculate_monthly_exposure() first.")
         
+        if USE_BLOB_STORAGE:
+            self._save_exposure_to_blob()
+        else:
+            self._save_exposure_to_local(output_file)
+    
+    def _save_exposure_to_local(self, output_file: Optional[Path] = None):
+        """Save monthly exposure data to local CSV file."""
         output_file = output_file or MONTHLY_EXPOSURE_FILE
         self.monthly_exposure.to_csv(output_file, index=False)
-        logger.info(f"Monthly exposure data saved to {output_file}")
+        logger.info(f"Monthly exposure data saved to local file: {output_file}")
+    
+    def _save_exposure_to_blob(self):
+        """Save monthly exposure data to Azure blob storage."""
+        if not validate_azure_config():
+            raise ValueError("Invalid Azure configuration for blob storage")
+        
+        # For blob storage, we need to save locally first, then upload
+        # This is because pandas.to_csv doesn't support direct blob writing
+        import tempfile
+        import os
+        
+        try:
+            # Create temporary file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as temp_file:
+                temp_path = temp_file.name
+                
+            # Save to temporary file
+            self.monthly_exposure.to_csv(temp_path, index=False)
+            
+            # Upload to blob using DuckDB
+            blob_url = get_monthly_exposure_url()
+            
+            query = f"""
+            COPY (
+                SELECT * FROM '{temp_path}'
+            ) TO '{blob_url}' (DELIMITER ',', HEADER)
+            """
+            
+            with get_azure_connection() as conn:
+                conn.execute(query)
+                
+            logger.info(f"Monthly exposure data saved to blob: {blob_url}")
+            
+        except Exception as e:
+            logger.error(f"Failed to save exposure data to blob: {e}")
+            raise
+        finally:
+            # Clean up temporary file
+            if 'temp_path' in locals() and os.path.exists(temp_path):
+                os.unlink(temp_path)
     
     def get_summary_stats(self) -> Dict:
         """Get summary statistics of the threshold analysis."""
