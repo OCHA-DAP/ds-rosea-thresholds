@@ -12,7 +12,7 @@ ASAP_PROCESSED_DATA_DIR = DATA_DIR / "processed" / "asap"
 
 # Input file paths
 WARNINGS_FILE = ASAP_RAW_DATA_DIR / "warnings_l2_ts.csv"
-WORLDPOP_FILE = ASAP_RAW_DATA_DIR / "worldpop_asap_l2_zmean.csv"
+WORLDPOP_FILE = ASAP_RAW_DATA_DIR / "worldpop2020_unAdj_zonal_sum_ROSEA.csv"
 
 # Output file paths
 FILTERED_WARNINGS_FILE = ASAP_PROCESSED_DATA_DIR / "warnings_filtered.csv"
