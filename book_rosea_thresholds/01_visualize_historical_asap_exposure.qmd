@@ -101,6 +101,55 @@ print(exposure_df.isnull().sum())
 
 ## Data Overview
 
+```{python}
+# data snapshot - show most recent month for all countries
+most_recent_month = exposure_df["year_month"].max()
+recent_data = exposure_df[exposure_df["year_month"] == most_recent_month].sort_values(
+    "country"
+)
+
+# data snapshot - show most recent month for all countries
+most_recent_month = exposure_df["year_month"].max()
+recent_data = exposure_df[exposure_df["year_month"] == most_recent_month].sort_values(
+    "country"
+)
+
+print(f"Data snapshot - Most recent month: {most_recent_month}")
+
+# Create a formatted version for display
+display_data = recent_data[
+    [
+        "country",
+        "year_month",
+        "total_population",
+        "pop_warning_1_plus",
+        "pop_warning_2_plus",
+        "pop_warning_3_plus",
+        "pop_warning_4_plus",
+        "pct_warning_1_plus",
+        "pct_warning_2_plus",
+        "pct_warning_3_plus",
+        "pct_warning_4_plus",
+    ]
+].copy()
+
+# Format population columns with commas
+pop_columns = [
+    col
+    for col in display_data.columns
+    if col.startswith("pop_") or col == "total_population"
+]
+for col in pop_columns:
+    display_data[col] = display_data[col].apply(lambda x: f"{x:,.0f}")
+
+# Format percentage columns with % symbol and 2 decimal places
+pct_columns = [col for col in display_data.columns if col.startswith("pct_")]
+for col in pct_columns:
+    display_data[col] = display_data[col].apply(lambda x: f"{x:.2f}%")
+
+display(display_data)
+```
+
 ## Warning Level Distribution
 
 ```{python}
