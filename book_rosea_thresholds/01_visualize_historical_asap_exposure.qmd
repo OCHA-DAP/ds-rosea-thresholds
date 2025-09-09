@@ -349,6 +349,7 @@ print(f"   • Peak exposure month: {peak_month}")
 print(f"   • Lowest exposure month: {low_month}")
 ```
 
+
 ## Regional Analysis: July Warning 3+ Trends
 
 ```{python}
@@ -565,4 +566,111 @@ print(f"\n🌍 REGIONAL AVERAGES (July):")
 print(f"   Eastern Africa: {east_total:.1f}M people per year")
 print(f"   Southern Africa: {south_total:.1f}M people per year")
 print(f"   Total ROSEA: {(east_total + south_total):.1f}M people per year")
+```
+
+
+## Percentile-Based Thresholds (Example)
+
+You set thresholds per month based on all countries values of % above a specific category (like `2+`, `3+`, or `4`). OR you could potentially calculate the percentile  values for regional groups (i.e east africa vs south africa), or even per county.
+
+Here we do it all at once (one group) for 3+
+
+```{python}
+#| label: fig-monthly-scatter
+#| fig-cap: "Monthly percentage of population at Warning 3+ by country with threshold lines"
+#| fig-width: 16
+#| fig-height: 10
+
+# Prepare data for scatter plot
+scatter_data = exposure_df.copy()
+scatter_data['month_jitter'] = scatter_data['month'] + np.random.normal(0, 0.1, len(scatter_data))
+
+# Create the scatter plot
+fig, ax = plt.subplots(figsize=(16, 10))
+
+# Get unique countries and create color map
+countries = sorted(scatter_data['country'].unique())
+colors = plt.cm.tab20(np.linspace(0, 1, len(countries)))
+country_colors = dict(zip(countries, colors))
+
+# Plot each country
+for i, country in enumerate(countries):
+    country_data = scatter_data[scatter_data['country'] == country]
+    ax.scatter(
+        country_data['month_jitter'], 
+        country_data['pct_warning_3_plus'],
+        c=[country_colors[country]], 
+        label=country,
+        alpha=0.7,
+        s=40,
+        edgecolors='white',
+        linewidth=0.5
+    )
+
+# Calculate percentile threshold values from the actual data
+percentile_levels = [66, 80, 90]  # Percentiles we want to show
+threshold_values = []
+for percentile in percentile_levels:
+    threshold_val = np.percentile(scatter_data['pct_warning_3_plus'], percentile)
+    threshold_values.append(threshold_val)
+
+threshold_colors = ['orange', 'red', 'darkred']
+threshold_styles = ['--', '-.', ':']
+
+print(f"Calculated percentile thresholds:")
+for percentile, value in zip(percentile_levels, threshold_values):
+    print(f"  {percentile}th percentile = {value:.1f}% population above Warning 3+")
+
+# Add horizontal threshold lines based on calculated percentiles
+for percentile, threshold, color, style in zip(percentile_levels, threshold_values, threshold_colors, threshold_styles):
+    ax.axhline(y=threshold, color=color, linestyle=style, linewidth=2, 
+               alpha=0.8, label=f'{percentile}th percentile ({threshold:.1f}%)')
+
+# Customize the plot
+ax.set_xlabel('Month', fontsize=14, fontweight='bold')
+ax.set_ylabel('% Population at Warning Level 3+', fontsize=14, fontweight='bold')
+ax.set_title('Monthly Population Exposure to Warning Level 3+ by Country\nwith Emergency Threshold Lines', 
+             fontsize=16, fontweight='bold', pad=20)
+
+# Set x-axis ticks and labels
+month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+               'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+ax.set_xticks(range(1, 13))
+ax.set_xticklabels(month_names)
+ax.set_xlim(0.5, 12.5)
+
+# Set y-axis limits
+ax.set_ylim(0, max(100, scatter_data['pct_warning_3_plus'].max() * 1.05))
+
+# Add grid
+ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+ax.set_facecolor('#FAFAFA')
+
+# Create legend with countries and thresholds
+# Countries legend
+legend1 = ax.legend(countries, loc='upper left', bbox_to_anchor=(1.02, 1), 
+                   title='Countries', title_fontsize=12, fontsize=10,
+                   frameon=True, fancybox=True, shadow=True)
+legend1.get_frame().set_facecolor('white')
+legend1.get_frame().set_alpha(0.9)
+
+# Add thresholds to the legend
+import matplotlib.lines as mlines
+threshold_lines = []
+for percentile, threshold, color, style in zip(percentile_levels, threshold_values, threshold_colors, threshold_styles):
+    threshold_lines.append(mlines.Line2D([], [], color=color, linestyle=style, 
+                                        linewidth=2, label=f'{percentile}th percentile ({threshold:.1f}%)'))
+
+legend2 = ax.legend(handles=threshold_lines, loc='upper left', bbox_to_anchor=(1.02, 0.3),
+                   title='Thresholds', title_fontsize=12, fontsize=10,
+                   frameon=True, fancybox=True, shadow=True)
+legend2.get_frame().set_facecolor('white')
+legend2.get_frame().set_alpha(0.9)
+
+# Add first legend back
+ax.add_artist(legend1)
+
+plt.tight_layout()
+plt.subplots_adjust(right=0.85)  # Make room for legends
+plt.show()
 ```
