@@ -325,12 +325,16 @@ print(f"   • Warning Level 2+: {avg_pop_2plus:,.0f} people ({avg_pop_2plus/1e6
 print(f"   • Warning Level 3+: {avg_pop_3plus:,.0f} people ({avg_pop_3plus/1e6:.1f}M)")
 print(f"   • Warning Level 4+: {avg_pop_4plus:,.0f} people ({avg_pop_4plus/1e6:.1f}M)")
 
-# Most/least exposed countries
+# Most exposed countries by warning level
 most_exposed_1 = country_summary.nlargest(3, "pct_warning_1_plus").index.tolist()
-least_exposed_1 = country_summary.nsmallest(3, "pct_warning_1_plus").index.tolist()
+most_exposed_2 = country_summary.nlargest(3, "pct_warning_2_plus").index.tolist()
+most_exposed_3 = country_summary.nlargest(3, "pct_warning_3_plus").index.tolist()
+most_exposed_4 = country_summary.nlargest(3, "pct_warning_4_plus").index.tolist()
 
 print(f"\n🔴 Highest Warning 1+ Exposure: {', '.join(most_exposed_1)}")
-print(f"🟢 Lowest Warning 1+ Exposure: {', '.join(least_exposed_1)}")
+print(f"🟠 Highest Warning 2+ Exposure: {', '.join(most_exposed_2)}")
+print(f"🟡 Highest Warning 3+ Exposure: {', '.join(most_exposed_3)}")
+print(f"🔺 Highest Warning 4+ Exposure: {', '.join(most_exposed_4)}")
 
 # Peak exposure months
 peak_month = seasonal_pattern.loc[

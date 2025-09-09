@@ -1,3 +1,4 @@
 - source: project
-  gh-pages:
-    - "*.html"
+  netlify:
+    - id: 1d3d28e8-64fd-4b1d-a0cf-e7fbf82aba4c
+      url: https://rosea-thresholds.netlify.app
