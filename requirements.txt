@@ -1,0 +1,8 @@
+requests>=2.31.0
+pandas>=2.1.0
+numpy>=1.24.0
+ocha-stratus==0.1.1
+coloredlogs==15.0.1
+python-dotenv
+jupyter-black
+marimo
