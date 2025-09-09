@@ -1,0 +1,19 @@
+# References {.unnumbered}
+
+## Data Sources
+
+**ASAP (Agricultural Stress Analysis Programme)**  
+Food and Agriculture Organization of the United Nations (FAO)
+[https://www.fao.org/giews/earthobservation/](https://www.fao.org/giews/earthobservation/)
+
+**WorldPop Population Data**  
+WorldPop Research Programme, University of Southampton
+[https://www.worldpop.org/](https://www.worldpop.org/)
+
+## Methodology References
+
+*[Additional methodological and technical references would be added here]*
+
+## Related Work
+
+*[References to related analytical work and publications would be added here]*
