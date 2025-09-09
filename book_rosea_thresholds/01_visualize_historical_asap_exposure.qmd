@@ -8,9 +8,11 @@ jupyter:
     display_name: "ds-rosea-thresholds"
 ---
 
-This notebook analyzes historical population exposure to agricultural warnings across 14 countries in East & Southern Africa. Here we just use the month of July as an example, but this same analysis would need to be done per month to se thresholds based on historical exposure to diifferent degrees of ASAP severity classifications.
+This notebook analyzes historical population exposure to agricultural warnings across 14 countries in East & Southern Africa. Here we just use the month of July as an example, but this same analysis would need to be done per month to set thresholds based on historical exposure to different degrees of ASAP severity classifications.
 
 The analysis combines ASAP warning data with WorldPop 2020 population estimates at admin2 level to calculate monthly country-level exposure metrics.
+
+**New in this version**: The analysis now covers both **cropland** (`w_crop_gr`) and **rangeland** (`w_range_gr`) warning indicators, allowing for comprehensive comparison of agricultural stress across different land use types. The visualizations compare crop vs rangeland exposure patterns, showing how these different warning systems affect populations differently.
 
 
 ```{python}
@@ -116,20 +118,28 @@ recent_data = exposure_df[exposure_df["year_month"] == most_recent_month].sort_v
 
 print(f"Data snapshot - Most recent month: {most_recent_month}")
 
-# Create a formatted version for display
+# Create a formatted version for display - showing both crop and range
 display_data = recent_data[
     [
         "country",
         "year_month",
         "total_population",
-        "pop_warning_1_plus",
-        "pop_warning_2_plus",
-        "pop_warning_3_plus",
-        "pop_warning_4_plus",
-        "pct_warning_1_plus",
-        "pct_warning_2_plus",
-        "pct_warning_3_plus",
-        "pct_warning_4_plus",
+        "crop_pop_warning_1_plus",
+        "crop_pop_warning_2_plus", 
+        "crop_pop_warning_3_plus",
+        "crop_pop_warning_4_plus",
+        "range_pop_warning_1_plus",
+        "range_pop_warning_2_plus",
+        "range_pop_warning_3_plus", 
+        "range_pop_warning_4_plus",
+        "crop_pct_warning_1_plus",
+        "crop_pct_warning_2_plus",
+        "crop_pct_warning_3_plus",
+        "crop_pct_warning_4_plus",
+        "range_pct_warning_1_plus",
+        "range_pct_warning_2_plus",
+        "range_pct_warning_3_plus",
+        "range_pct_warning_4_plus",
     ]
 ].copy()
 
@@ -137,13 +147,13 @@ display_data = recent_data[
 pop_columns = [
     col
     for col in display_data.columns
-    if col.startswith("pop_") or col == "total_population"
+    if col.startswith("crop_pop_") or col.startswith("range_pop_") or col == "total_population"
 ]
 for col in pop_columns:
     display_data[col] = display_data[col].apply(lambda x: f"{x:,.0f}")
 
 # Format percentage columns with % symbol and 2 decimal places
-pct_columns = [col for col in display_data.columns if col.startswith("pct_")]
+pct_columns = [col for col in display_data.columns if col.startswith("crop_pct_") or col.startswith("range_pct_")]
 for col in pct_columns:
     display_data[col] = display_data[col].apply(lambda x: f"{x:.2f}%")
 
@@ -158,48 +168,68 @@ display(display_data)
 #| fig-width: 15
 #| fig-height: 6
 
-# Calculate average populations at different warning thresholds
-warning_cols = [col for col in exposure_df.columns if col.startswith('pop_warning_') and col.endswith('_plus')]
+# Calculate average populations at different warning thresholds for both crop and range
+crop_warning_cols = [col for col in exposure_df.columns if col.startswith('crop_pop_warning_') and col.endswith('_plus')]
+range_warning_cols = [col for col in exposure_df.columns if col.startswith('range_pop_warning_') and col.endswith('_plus')]
 
-avg_warnings = {}
-for col in warning_cols:
-    threshold = col.split('_')[2]  # Extract threshold number
+crop_avg_warnings = {}
+range_avg_warnings = {}
+
+for col in crop_warning_cols:
+    threshold = col.split('_')[3]  # Extract threshold number
     avg_pop = exposure_df[col].mean()
-    avg_warnings[f"Warning {threshold}+"] = avg_pop
+    crop_avg_warnings[f"Crop Warning {threshold}+"] = avg_pop
 
-# Create visualization
+for col in range_warning_cols:
+    threshold = col.split('_')[3]  # Extract threshold number
+    avg_pop = exposure_df[col].mean()
+    range_avg_warnings[f"Range Warning {threshold}+"] = avg_pop
+
+# Create visualization comparing crop vs range
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
 
-# Bar chart of average populations
-thresholds = list(avg_warnings.keys())
-populations = list(avg_warnings.values())
+# Comparison bar chart
+thresholds = ['1+', '2+', '3+', '4+']
+crop_pops = [crop_avg_warnings[f"Crop Warning {t}"] for t in thresholds]
+range_pops = [range_avg_warnings[f"Range Warning {t}"] for t in thresholds]
 
-ax1.bar(thresholds, populations, color='skyblue', edgecolor='navy', alpha=0.7)
-ax1.set_title('Average Population at Warning Thresholds\n(Monthly Country-Level)', fontsize=14, fontweight='bold')
+x = np.arange(len(thresholds))
+width = 0.35
+
+bars1 = ax1.bar(x - width/2, crop_pops, width, label='Cropland', color='lightgreen', edgecolor='darkgreen', alpha=0.7)
+bars2 = ax1.bar(x + width/2, range_pops, width, label='Rangeland', color='sandybrown', edgecolor='saddlebrown', alpha=0.7)
+
+ax1.set_title('Average Population at Warning Thresholds\nCropland vs Rangeland', fontsize=14, fontweight='bold')
 ax1.set_ylabel('Average Population', fontsize=12)
 ax1.set_xlabel('Warning Threshold', fontsize=12)
+ax1.set_xticks(x)
+ax1.set_xticklabels([f'Warning {t}' for t in thresholds])
+ax1.legend()
 
 # Format y-axis to show millions
 ax1.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{x/1e6:.1f}M'))
 
 # Add value labels on bars
-for i, v in enumerate(populations):
-    ax1.text(i, v + max(populations)*0.01, f'{v/1e6:.1f}M', 
-             ha='center', va='bottom', fontweight='bold')
+for bars in [bars1, bars2]:
+    for bar in bars:
+        height = bar.get_height()
+        ax1.text(bar.get_x() + bar.get_width()/2., height + max(crop_pops + range_pops)*0.01,
+                f'{height/1e6:.1f}M', ha='center', va='bottom', fontsize=9)
 
-# Box plot showing distribution across countries
-warning_data = []
-for col in warning_cols:
-    threshold = f"Warning {col.split('_')[2]}+"
-    values = exposure_df[col].values
-    warning_data.extend([(threshold, val) for val in values])
+# Simple box plot comparing crop vs range for Warning 1+
+crop_1_plus_data = exposure_df[crop_warning_cols[0]].values  # First column is 1+
+range_1_plus_data = exposure_df[range_warning_cols[0]].values  # First column is 1+
 
-warning_df = pd.DataFrame(warning_data, columns=['Threshold', 'Population'])
+# Create simple box plot data
+box_plot_data = []
+box_plot_data.extend([('Crop', val) for val in crop_1_plus_data])
+box_plot_data.extend([('Range', val) for val in range_1_plus_data])
 
-box_plot = warning_df.boxplot(column='Population', by='Threshold', ax=ax2)
-ax2.set_title('Population Distribution by Warning Threshold\n(All Country-Months)', fontsize=14, fontweight='bold')
+box_df = pd.DataFrame(box_plot_data, columns=['Type', 'Population'])
+box_df.boxplot(column='Population', by='Type', ax=ax2)
+ax2.set_title('Population Distribution: Crop vs Range\n(Warning 1+ All Country-Months)', fontsize=14, fontweight='bold')
 ax2.set_ylabel('Population', fontsize=12)
-ax2.set_xlabel('Warning Threshold', fontsize=12)
+ax2.set_xlabel('Warning Type', fontsize=12)
 
 # Format y-axis to show millions
 ax2.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{x/1e6:.1f}M'))
@@ -220,30 +250,39 @@ plt.show()
 # Convert year_month to datetime for better plotting
 exposure_df['date'] = pd.to_datetime(exposure_df['year_month'])
 
-# Calculate regional totals by month
-monthly_totals = exposure_df.groupby('date')[warning_cols].sum().reset_index()
+# Calculate regional totals by month for both crop and range
+monthly_totals = exposure_df.groupby('date')[crop_warning_cols + range_warning_cols].sum().reset_index()
 
-# Create time series plot with matplotlib
+# Create time series plot comparing crop vs range
 fig, axes = plt.subplots(2, 2, figsize=(15, 10))
-fig.suptitle('Regional Population Exposure Trends Over Time\nTotal population across all ROSEA countries by warning threshold', 
+fig.suptitle('Regional Population Exposure Trends: Cropland vs Rangeland\nTotal population across all ROSEA countries by warning threshold', 
              fontsize=16, fontweight='bold')
 
-colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4']
+# Use consistent colors: one green for cropland, one brown for rangeland
+crop_color = '#228B22'  # Consistent green for all cropland data
+range_color = '#8B4513'  # Consistent brown for all rangeland data
 titles = ['Warning 1+ Population', 'Warning 2+ Population', 
           'Warning 3+ Population', 'Warning 4+ Population']
 
-for i, col in enumerate(warning_cols):
+for i in range(4):
     row = i // 2
     col_num = i % 2
     ax = axes[row, col_num]
-    threshold = col.split('_')[2]
     
-    ax.plot(monthly_totals['date'], monthly_totals[col]/1e6, 
-            color=colors[i], linewidth=2, alpha=0.8)
+    crop_col = crop_warning_cols[i]
+    range_col = range_warning_cols[i]
+    
+    # Plot crop and range lines using consistent colors
+    ax.plot(monthly_totals['date'], monthly_totals[crop_col]/1e6, 
+            color=crop_color, linewidth=2.5, alpha=0.9, label='Cropland')
+    ax.plot(monthly_totals['date'], monthly_totals[range_col]/1e6, 
+            color=range_color, linewidth=2.5, alpha=0.9, label='Rangeland', linestyle='--')
+    
     ax.set_title(titles[i], fontsize=12, fontweight='bold')
     ax.set_ylabel('Population (Millions)')
     ax.grid(True, alpha=0.3)
     ax.tick_params(axis='x', rotation=45)
+    ax.legend(loc='upper left')
 
 plt.tight_layout()
 plt.show()
@@ -252,18 +291,20 @@ plt.show()
 ## Country-Level Analysis
 
 ```{python}
-# Calculate country averages
-country_summary = exposure_df.groupby('country').agg({
-    'total_population': 'mean',
-    'pop_warning_1_plus': 'mean',
-    'pop_warning_2_plus': 'mean', 
-    'pop_warning_3_plus': 'mean',
-    'pop_warning_4_plus': 'mean',
-    'pct_warning_1_plus': 'mean',
-    'pct_warning_2_plus': 'mean',
-    'pct_warning_3_plus': 'mean',
-    'pct_warning_4_plus': 'mean'
-}).round(0)
+# Calculate country averages for both crop and range
+agg_dict = {'total_population': 'mean'}
+
+# Add crop columns
+for col in crop_warning_cols + [col.replace('pop_warning', 'pct_warning') for col in crop_warning_cols]:
+    if col in exposure_df.columns:
+        agg_dict[col] = 'mean'
+
+# Add range columns  
+for col in range_warning_cols + [col.replace('pop_warning', 'pct_warning') for col in range_warning_cols]:
+    if col in exposure_df.columns:
+        agg_dict[col] = 'mean'
+
+country_summary = exposure_df.groupby('country').agg(agg_dict).round(0)
 
 # Sort by total population
 country_summary = country_summary.sort_values('total_population', ascending=False)
@@ -281,32 +322,53 @@ display(country_summary)
 #| fig-width: 10
 #| fig-height: 8
 
-# Create heatmap of warning percentages by country
-pct_cols = [col for col in exposure_df.columns if col.startswith('pct_warning_') and col.endswith('_plus')]
+# Create separate heatmaps for crop and range warning percentages
+crop_pct_cols = [col for col in exposure_df.columns if col.startswith('crop_pct_warning_') and col.endswith('_plus')]
+range_pct_cols = [col for col in exposure_df.columns if col.startswith('range_pct_warning_') and col.endswith('_plus')]
 
 # Calculate country averages for percentages
-country_pct = exposure_df.groupby('country')[pct_cols].mean()
+crop_country_pct = exposure_df.groupby('country')[crop_pct_cols].mean()
+range_country_pct = exposure_df.groupby('country')[range_pct_cols].mean()
 
 # Rename columns for better display
-country_pct.columns = [f"Warning {col.split('_')[2]}+" for col in country_pct.columns]
+crop_country_pct.columns = [f"Crop Warning {col.split('_')[3]}+" for col in crop_country_pct.columns]
+range_country_pct.columns = [f"Range Warning {col.split('_')[3]}+" for col in range_country_pct.columns]
 
-# Create heatmap
-plt.figure(figsize=(10, 8))
+# Create side-by-side heatmaps
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
+
+# Crop heatmap
 sns.heatmap(
-    country_pct, 
+    crop_country_pct, 
     annot=True, 
     fmt='.1f', 
-    cmap='Reds', 
-    cbar_kws={'label': 'Average % Population Exposed'},
-    linewidths=0.5
+    cmap='Greens', 
+    cbar_kws={'label': 'Avg % Pop Exposed'},
+    linewidths=0.5,
+    ax=ax1
 )
+ax1.set_title('Cropland Warning Exposure\nby Country', fontsize=14, fontweight='bold')
+ax1.set_xlabel('Crop Warning Threshold', fontsize=12)
+ax1.set_ylabel('Country', fontsize=12)
 
-plt.title('Average Population Exposure Percentages by Country\n(% of population at each warning threshold)', 
-          fontsize=14, fontweight='bold', pad=20)
-plt.xlabel('Warning Threshold', fontsize=12)
-plt.ylabel('Country', fontsize=12)
-plt.xticks(rotation=0)
-plt.yticks(rotation=0)
+# Range heatmap
+sns.heatmap(
+    range_country_pct, 
+    annot=True, 
+    fmt='.1f', 
+    cmap='Oranges', 
+    cbar_kws={'label': 'Avg % Pop Exposed'},
+    linewidths=0.5,
+    ax=ax2
+)
+ax2.set_title('Rangeland Warning Exposure\nby Country', fontsize=14, fontweight='bold')
+ax2.set_xlabel('Range Warning Threshold', fontsize=12)
+ax2.set_ylabel('')  # Remove y-label for cleaner look
+ax2.set_yticklabels([])  # Remove y-tick labels on second plot
+
+fig.suptitle('Average Population Exposure Percentages by Country\nCropland vs Rangeland Warning Thresholds', 
+          fontsize=16, fontweight='bold', y=1.02)
+
 plt.tight_layout()
 plt.show()
 ```
@@ -323,29 +385,40 @@ plt.show()
 exposure_df['month'] = exposure_df['date'].dt.month
 exposure_df['month_name'] = exposure_df['date'].dt.strftime('%b')
 
-# Calculate monthly averages across all years
-seasonal_pattern = exposure_df.groupby(['month', 'month_name'])[warning_cols].mean().reset_index()
+# Calculate monthly averages across all years for both crop and range
+seasonal_pattern = exposure_df.groupby(['month', 'month_name'])[crop_warning_cols + range_warning_cols].mean().reset_index()
 
-# Create seasonal visualization
-fig, ax = plt.subplots(figsize=(12, 6))
+# Create seasonal visualization comparing crop vs range
+fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+fig.suptitle('Seasonal Patterns: Cropland vs Rangeland Warning Exposure\n(Average across all countries and years)', 
+             fontsize=16, fontweight='bold')
 
 month_order = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
                'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-for i, col in enumerate(warning_cols):
-    threshold = col.split('_')[2]
-    ax.plot(seasonal_pattern['month'], seasonal_pattern[col]/1e6, 
-            marker='o', linewidth=2, label=f'Warning {threshold}+',
-            color=colors[i])
-
-ax.set_title('Seasonal Pattern of Population Exposure\n(Average across all countries and years)', 
-             fontsize=14, fontweight='bold')
-ax.set_xlabel('Month', fontsize=12)
-ax.set_ylabel('Average Population (Millions)', fontsize=12)
-ax.set_xticks(range(1, 13))
-ax.set_xticklabels(month_order)
-ax.legend(loc='upper right')
-ax.grid(True, alpha=0.3)
+for i in range(4):
+    row = i // 2
+    col_num = i % 2
+    ax = axes[row, col_num]
+    
+    crop_col = crop_warning_cols[i]
+    range_col = range_warning_cols[i]
+    threshold = f'{i+1}+'
+    
+    ax.plot(seasonal_pattern['month'], seasonal_pattern[crop_col]/1e6, 
+            marker='o', linewidth=2.5, label=f'Cropland Warning {threshold}',
+            color=crop_color, markersize=6)
+    ax.plot(seasonal_pattern['month'], seasonal_pattern[range_col]/1e6, 
+            marker='s', linewidth=2.5, label=f'Rangeland Warning {threshold}',
+            color=range_color, markersize=6, linestyle='--')
+    
+    ax.set_title(f'Warning {threshold} Seasonal Pattern', fontsize=12, fontweight='bold')
+    ax.set_xlabel('Month', fontsize=10)
+    ax.set_ylabel('Average Population (Millions)', fontsize=10)
+    ax.set_xticks(range(1, 13))
+    ax.set_xticklabels(month_order, fontsize=9)
+    ax.legend(loc='upper right', fontsize=9)
+    ax.grid(True, alpha=0.3)
 
 plt.tight_layout()
 plt.show()
@@ -359,47 +432,91 @@ total_months = len(exposure_df)
 total_countries = exposure_df["country"].nunique()
 date_range = f"{exposure_df['year_month'].min()} to {exposure_df['year_month'].max()}"
 
-avg_pop_1plus = exposure_df["pop_warning_1_plus"].mean()
-avg_pop_2plus = exposure_df["pop_warning_2_plus"].mean()
-avg_pop_3plus = exposure_df["pop_warning_3_plus"].mean()
-avg_pop_4plus = exposure_df["pop_warning_4_plus"].mean()
+# Calculate averages for both crop and range
+crop_avg_1plus = exposure_df["crop_pop_warning_1_plus"].mean()
+crop_avg_2plus = exposure_df["crop_pop_warning_2_plus"].mean()
+crop_avg_3plus = exposure_df["crop_pop_warning_3_plus"].mean()
+crop_avg_4plus = exposure_df["crop_pop_warning_4_plus"].mean()
+
+range_avg_1plus = exposure_df["range_pop_warning_1_plus"].mean()
+range_avg_2plus = exposure_df["range_pop_warning_2_plus"].mean()
+range_avg_3plus = exposure_df["range_pop_warning_3_plus"].mean()
+range_avg_4plus = exposure_df["range_pop_warning_4_plus"].mean()
 
 print("=== KEY FINDINGS ===")
 print(
     f"📊 Dataset Coverage: {total_countries} countries, {total_months:,} country-months ({date_range})"
 )
-print(f"👥 Average Regional Population Exposure:")
-print(f"   • Warning Level 1+: {avg_pop_1plus:,.0f} people ({avg_pop_1plus/1e6:.1f}M)")
-print(f"   • Warning Level 2+: {avg_pop_2plus:,.0f} people ({avg_pop_2plus/1e6:.1f}M)")
-print(f"   • Warning Level 3+: {avg_pop_3plus:,.0f} people ({avg_pop_3plus/1e6:.1f}M)")
-print(f"   • Warning Level 4+: {avg_pop_4plus:,.0f} people ({avg_pop_4plus/1e6:.1f}M)")
+print(f"🌾 Average Regional Cropland Warning Exposure:")
+print(f"   • Warning Level 1+: {crop_avg_1plus:,.0f} people ({crop_avg_1plus/1e6:.1f}M)")
+print(f"   • Warning Level 2+: {crop_avg_2plus:,.0f} people ({crop_avg_2plus/1e6:.1f}M)")
+print(f"   • Warning Level 3+: {crop_avg_3plus:,.0f} people ({crop_avg_3plus/1e6:.1f}M)")
+print(f"   • Warning Level 4+: {crop_avg_4plus:,.0f} people ({crop_avg_4plus/1e6:.1f}M)")
 
-# Most exposed countries by warning level
-most_exposed_1 = country_summary.nlargest(3, "pct_warning_1_plus").index.tolist()
-most_exposed_2 = country_summary.nlargest(3, "pct_warning_2_plus").index.tolist()
-most_exposed_3 = country_summary.nlargest(3, "pct_warning_3_plus").index.tolist()
-most_exposed_4 = country_summary.nlargest(3, "pct_warning_4_plus").index.tolist()
+print(f"\n🌱 Average Regional Rangeland Warning Exposure:")
+print(f"   • Warning Level 1+: {range_avg_1plus:,.0f} people ({range_avg_1plus/1e6:.1f}M)")
+print(f"   • Warning Level 2+: {range_avg_2plus:,.0f} people ({range_avg_2plus/1e6:.1f}M)")
+print(f"   • Warning Level 3+: {range_avg_3plus:,.0f} people ({range_avg_3plus/1e6:.1f}M)")
+print(f"   • Warning Level 4+: {range_avg_4plus:,.0f} people ({range_avg_4plus/1e6:.1f}M)")
 
-print(f"\n🔴 Highest Warning 1+ Exposure: {', '.join(most_exposed_1)}")
-print(f"🟠 Highest Warning 2+ Exposure: {', '.join(most_exposed_2)}")
-print(f"🟡 Highest Warning 3+ Exposure: {', '.join(most_exposed_3)}")
-print(f"🔺 Highest Warning 4+ Exposure: {', '.join(most_exposed_4)}")
+# Most exposed countries by warning level (crop vs range)
+crop_most_exposed_1 = country_summary.nlargest(3, "crop_pct_warning_1_plus").index.tolist()
+crop_most_exposed_2 = country_summary.nlargest(3, "crop_pct_warning_2_plus").index.tolist()  
+crop_most_exposed_3 = country_summary.nlargest(3, "crop_pct_warning_3_plus").index.tolist()
+crop_most_exposed_4 = country_summary.nlargest(3, "crop_pct_warning_4_plus").index.tolist()
 
-# Peak exposure months
-peak_month = seasonal_pattern.loc[
-    seasonal_pattern["pop_warning_1_plus"].idxmax(), "month_name"
+range_most_exposed_1 = country_summary.nlargest(3, "range_pct_warning_1_plus").index.tolist()
+range_most_exposed_2 = country_summary.nlargest(3, "range_pct_warning_2_plus").index.tolist()
+range_most_exposed_3 = country_summary.nlargest(3, "range_pct_warning_3_plus").index.tolist()
+range_most_exposed_4 = country_summary.nlargest(3, "range_pct_warning_4_plus").index.tolist()
+
+print(f"\n🌾 CROPLAND - Highest Warning Exposure:")
+print(f"🟢 Highest Warning 1+ Exposure: {', '.join(crop_most_exposed_1)}")
+print(f"🟡 Highest Warning 2+ Exposure: {', '.join(crop_most_exposed_2)}")
+print(f"🟠 Highest Warning 3+ Exposure: {', '.join(crop_most_exposed_3)}")
+print(f"🔴 Highest Warning 4+ Exposure: {', '.join(crop_most_exposed_4)}")
+
+print(f"\n🌱 RANGELAND - Highest Warning Exposure:")
+print(f"🟢 Highest Warning 1+ Exposure: {', '.join(range_most_exposed_1)}")
+print(f"🟡 Highest Warning 2+ Exposure: {', '.join(range_most_exposed_2)}")
+print(f"🟠 Highest Warning 3+ Exposure: {', '.join(range_most_exposed_3)}")
+print(f"🔴 Highest Warning 4+ Exposure: {', '.join(range_most_exposed_4)}")
+
+# Peak exposure months for both types
+crop_peak_month = seasonal_pattern.loc[
+    seasonal_pattern["crop_pop_warning_1_plus"].idxmax(), "month_name"
 ]
-low_month = seasonal_pattern.loc[
-    seasonal_pattern["pop_warning_1_plus"].idxmin(), "month_name"
+crop_low_month = seasonal_pattern.loc[
+    seasonal_pattern["crop_pop_warning_1_plus"].idxmin(), "month_name"
+]
+range_peak_month = seasonal_pattern.loc[
+    seasonal_pattern["range_pop_warning_1_plus"].idxmax(), "month_name"
+]
+range_low_month = seasonal_pattern.loc[
+    seasonal_pattern["range_pop_warning_1_plus"].idxmin(), "month_name"
 ]
 
-print(f"\n📅 Seasonal Pattern:")
-print(f"   • Peak exposure month: {peak_month}")
-print(f"   • Lowest exposure month: {low_month}")
+print(f"\n📅 Seasonal Patterns:")
+print(f"   • Cropland - Peak: {crop_peak_month}, Lowest: {crop_low_month}")
+print(f"   • Rangeland - Peak: {range_peak_month}, Lowest: {range_low_month}")
+
+# Comparison insights
+crop_vs_range_1plus = (range_avg_1plus / crop_avg_1plus - 1) * 100
+crop_vs_range_3plus = (range_avg_3plus / crop_avg_3plus - 1) * 100
+
+print(f"\n📈 Key Insights:")
+print(f"   • Rangeland warnings affect {crop_vs_range_1plus:+.0f}% more people than cropland (Warning 1+)")
+print(f"   • Rangeland warnings affect {crop_vs_range_3plus:+.0f}% more people than cropland (Warning 3+)")
+
+# Check if peak months are actually different
+if crop_peak_month != range_peak_month or crop_low_month != range_low_month:
+    print(f"   • Cropland and rangeland show different seasonal patterns with distinct peak/low months")
+else:
+    print(f"   • Both warning types show similar seasonal patterns with the same peak and low months")
 ```
 
 
-## Regional Analysis: July Warning 3+ Trends
+## Regional Analysis: July Cropland Warning 3+ Trends
 
 ```{python}
 # Define regional groupings according to geographic classification
@@ -434,7 +551,7 @@ region_data = july_data[july_data['country'].isin(eastern_africa)].copy()
 for i, country in enumerate(eastern_africa):
     if country in region_data['country'].values:
         country_data = region_data[region_data['country'] == country].sort_values('year')
-        pop_millions = country_data['pop_warning_3_plus'] / 1e6
+        pop_millions = country_data['crop_pop_warning_3_plus'] / 1e6
         
         ax.plot(country_data['year'], pop_millions, 
                color=eastern_colors[i], linewidth=2.5, marker='o', markersize=5,
@@ -465,7 +582,7 @@ region_data = july_data[july_data['country'].isin(southern_africa)].copy()
 for i, country in enumerate(southern_africa):
     if country in region_data['country'].values:
         country_data = region_data[region_data['country'] == country].sort_values('year')
-        pop_millions = country_data['pop_warning_3_plus'] / 1e6
+        pop_millions = country_data['crop_pop_warning_3_plus'] / 1e6
         
         ax.plot(country_data['year'], pop_millions, 
                color=southern_colors[i], linewidth=2.5, marker='s', markersize=5,
@@ -514,7 +631,7 @@ region_data = july_data[july_data['country'].isin(eastern_africa)].copy()
 for i, country in enumerate(eastern_africa):
     if country in region_data['country'].values:
         country_data = region_data[region_data['country'] == country].sort_values('year')
-        pct_exposure = country_data['pct_warning_3_plus']
+        pct_exposure = country_data['crop_pct_warning_3_plus']
         
         ax.plot(country_data['year'], pct_exposure, 
                color=eastern_colors[i], linewidth=2.5, marker='o', markersize=5,
@@ -545,7 +662,7 @@ region_data = july_data[july_data['country'].isin(southern_africa)].copy()
 for i, country in enumerate(southern_africa):
     if country in region_data['country'].values:
         country_data = region_data[region_data['country'] == country].sort_values('year')
-        pct_exposure = country_data['pct_warning_3_plus']
+        pct_exposure = country_data['crop_pct_warning_3_plus']
         
         ax.plot(country_data['year'], pct_exposure, 
                color=southern_colors[i], linewidth=2.5, marker='s', markersize=5,
@@ -591,8 +708,8 @@ east_data = july_data[july_data['country'].isin(eastern_africa)]
 for country in eastern_africa:
     if country in east_data['country'].values:
         country_data = east_data[east_data['country'] == country]
-        avg_pop = country_data['pop_warning_3_plus'].mean()
-        avg_pct = country_data['pct_warning_3_plus'].mean()
+        avg_pop = country_data['crop_pop_warning_3_plus'].mean()
+        avg_pct = country_data['crop_pct_warning_3_plus'].mean()
         years_data = len(country_data)
         print(f"  {country}: {avg_pop:,.0f} people ({avg_pop/1e6:.1f}M) - {avg_pct:.1f}% - {years_data} years")
 
@@ -602,14 +719,14 @@ south_data = july_data[july_data['country'].isin(southern_africa)]
 for country in southern_africa:
     if country in south_data['country'].values:
         country_data = south_data[south_data['country'] == country]
-        avg_pop = country_data['pop_warning_3_plus'].mean()
-        avg_pct = country_data['pct_warning_3_plus'].mean()
+        avg_pop = country_data['crop_pop_warning_3_plus'].mean()
+        avg_pct = country_data['crop_pct_warning_3_plus'].mean()
         years_data = len(country_data)
         print(f"  {country}: {avg_pop:,.0f} people ({avg_pop/1e6:.1f}M) - {avg_pct:.1f}% - {years_data} years")
 
 # Regional totals
-east_total = east_data['pop_warning_3_plus'].sum() / len(east_data['year'].unique()) / 1e6
-south_total = south_data['pop_warning_3_plus'].sum() / len(south_data['year'].unique()) / 1e6
+east_total = east_data['crop_pop_warning_3_plus'].sum() / len(east_data['year'].unique()) / 1e6
+south_total = south_data['crop_pop_warning_3_plus'].sum() / len(south_data['year'].unique()) / 1e6
 
 print(f"\n🌍 REGIONAL AVERAGES (July):")
 print(f"   Eastern Africa: {east_total:.1f}M people per year")
@@ -618,7 +735,7 @@ print(f"   Total ROSEA: {(east_total + south_total):.1f}M people per year")
 ```
 
 
-## Percentile-Based Thresholds (Example)
+## Percentile-Based Thresholds: Cropland Analysis (Example)
 
 You set thresholds per month based on all countries values of % above a specific category (like `2+`, `3+`, or `4`). OR you could potentially calculate the percentile  values for regional groups (i.e east africa vs south africa), or even per county.
 
@@ -647,7 +764,7 @@ for i, country in enumerate(countries):
     country_data = scatter_data[scatter_data['country'] == country]
     ax.scatter(
         country_data['month_jitter'], 
-        country_data['pct_warning_3_plus'],
+        country_data['crop_pct_warning_3_plus'],
         c=[country_colors[country]], 
         label=country,
         alpha=0.7,
@@ -660,7 +777,7 @@ for i, country in enumerate(countries):
 percentile_levels = [66, 80, 90]  # Percentiles we want to show
 threshold_values = []
 for percentile in percentile_levels:
-    threshold_val = np.percentile(scatter_data['pct_warning_3_plus'], percentile)
+    threshold_val = np.percentile(scatter_data['crop_pct_warning_3_plus'], percentile)
     threshold_values.append(threshold_val)
 
 threshold_colors = ['orange', 'red', 'darkred']
@@ -689,7 +806,7 @@ ax.set_xticklabels(month_names)
 ax.set_xlim(0.5, 12.5)
 
 # Set y-axis limits
-ax.set_ylim(0, max(100, scatter_data['pct_warning_3_plus'].max() * 1.05))
+ax.set_ylim(0, max(100, scatter_data['crop_pct_warning_3_plus'].max() * 1.05))
 
 # Add grid
 ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
