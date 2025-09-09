@@ -48,6 +48,12 @@ WARNING_LEVEL_HIERARCHY = {
 # Reverse mapping for easy lookup
 WARNING_HIERARCHY_REVERSE = {v: k for k, v in WARNING_LEVEL_HIERARCHY.items()}
 
+# Warning column mappings for dual analysis
+WARNING_COLUMNS = {
+    'crop': 'w_crop_gr',
+    'range': 'w_range_gr'
+}
+
 # Threshold levels for analysis (ascending severity)
 WARNING_THRESHOLDS = [1, 2, 3, 4]  # Warning group 1+, 2+, 3+, 4+
 
