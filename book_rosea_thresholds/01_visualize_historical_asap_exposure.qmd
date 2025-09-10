@@ -1,4 +1,4 @@
-# JRC ASAP + WorldPop
+# ASAP Exposure
 
 ---
 jupyter: 
@@ -8,7 +8,7 @@ jupyter:
     display_name: "ds-rosea-thresholds"
 ---
 
-This notebook analyzes historical population exposure to agricultural warnings across 14 countries in East & Southern Africa. Here we just use the month of July as an example, but this same analysis would need to be done per month to set thresholds based on historical exposure to different degrees of ASAP severity classifications.
+This notebook analyzes historical population exposure to agricultural warnings across 15 countries in East & Southern Africa. Here we just use the month of July as an example, but this same analysis would need to be done per month to set thresholds based on historical exposure to different degrees of ASAP severity classifications.
 
 The analysis combines ASAP warning data with WorldPop 2020 population estimates at admin2 level to calculate monthly country-level exposure metrics.
 

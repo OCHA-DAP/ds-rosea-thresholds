@@ -1,4 +1,4 @@
-# ASAP Threshold Return Periods Analysis
+# ASAP Threshold Investigation
 
 ---
 jupyter: 
@@ -8,7 +8,10 @@ jupyter:
     display_name: "ds-rosea-thresholds"
 ---
 
-This chapter analyzes agricultural stress threshold return periods using annual maximum values to determine operationally viable trigger thresholds for humanitarian support packages.
+**WIP** these recommendations are **not real**  - just a first look at the type of analysis possible. Overall RP is not calculated exactly correct, but the per country ones look good so far.
+
+
+This chapter analyzes ASAP grade return periods using annual maximum values to determine operationally viable trigger thresholds for humanitarian support packages.
 
 ## Methodology: Annual Return Period Calculation
 
@@ -24,6 +27,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+# Import Azure blob utilities
+from src.asap.azure_config import get_monthly_exposure_url, USE_BLOB_STORAGE
+from src.asap.blob_utils import get_azure_connection
+
 # Set up plotting
 plt.style.use("seaborn-v0_8")
 sns.set_palette("viridis")
@@ -38,21 +45,35 @@ print("Using Annual Maximum Approach for Operational Relevance")
 
 ```{python}
 # Load monthly exposure data
-df = pd.read_csv('../data/processed/asap/threshold_analysis/monthly_exposure_dual_warnings.csv')
+print("Loading monthly exposure data from Azure Blob Storage...")
+
+# Get the blob URL for monthly exposure results
+exposure_url = get_monthly_exposure_url()
+print(f"Data source: {exposure_url}")
+
+# Use DuckDB to read directly from blob
+with get_azure_connection() as conn:
+    query = f"""
+    SELECT * FROM '{exposure_url}'
+    ORDER BY country, year_month
+    """
+
+    df = conn.execute(query).fetchdf()
 
 # Convert to annual maximums
-df['date'] = pd.to_datetime(df['year_month'])
-df['year'] = df['date'].dt.year
+df["date"] = pd.to_datetime(df["year_month"])
+df["year"] = df["date"].dt.year
 
 print(f"📊 Monthly Dataset: {len(df):,} country-month records")
 print(f"Countries: {sorted(df['country'].unique())}")
 print(f"Period: {df['year'].min()}-{df['year'].max()}")
 
 # Create annual maximum dataset
-annual_max = df.groupby(['country', 'year']).agg({
-    'crop_pct_warning_3_plus': 'max',
-    'crop_pop_warning_3_plus': 'max'
-}).reset_index()
+annual_max = (
+    df.groupby(["country", "year"])
+    .agg({"crop_pct_warning_3_plus": "max", "crop_pop_warning_3_plus": "max"})
+    .reset_index()
+)
 
 print(f"\n📈 Annual Maximum Dataset: {len(annual_max):,} country-year records")
 print(f"Years per country: {len(annual_max) // len(df['country'].unique())} years")
@@ -164,6 +185,7 @@ for result in results:
 
 ## Return Period Visualizations
 
+**These are just a few threshold scenarios** , not a full search grid
 ```{python}
 # Create comprehensive visualization
 fig, axes = plt.subplots(2, 2, figsize=(20, 16))

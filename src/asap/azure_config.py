@@ -36,6 +36,9 @@ BLOB_THRESHOLD_ANALYSIS_DIR = f"{BLOB_PROCESSED_PATH}/threshold_analysis"
 BLOB_MONTHLY_EXPOSURE_FILE = (
     f"{BLOB_THRESHOLD_ANALYSIS_DIR}/monthly_exposure_crop_rangeland_warnings.csv"
 )
+BLOB_MONTHLY_EXPOSURE_DUAL_FILE = (
+    f"{BLOB_THRESHOLD_ANALYSIS_DIR}/monthly_exposure_dual_warnings.csv"
+)
 
 
 def get_blob_url(relative_path: str) -> str:
@@ -100,6 +103,11 @@ def get_filtered_warnings_url() -> str:
 def get_monthly_exposure_url() -> str:
     """Get URL for monthly exposure analysis output."""
     return get_blob_url(BLOB_MONTHLY_EXPOSURE_FILE)
+
+
+def get_monthly_exposure_dual_url() -> str:
+    """Get URL for monthly exposure dual warnings analysis output."""
+    return get_blob_url(BLOB_MONTHLY_EXPOSURE_DUAL_FILE)
 
 
 def log_azure_info():
