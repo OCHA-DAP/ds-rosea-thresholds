@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ds-rosea-thresholds"
+version = "0.1.0"
+description = "Country-based support for slow onset and sudden onset shocks"
+authors = [
+    {name = "CHD Team"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=2.0.0",
+    "duckdb>=0.8.0",
+    "tqdm>=4.65.0",
+    "python-dotenv>=1.0.0",
+    "numpy>=1.24.0"
+]
+
+[project.scripts]
+filter-warnings = "scripts.filter_warnings:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*", "scripts*"]

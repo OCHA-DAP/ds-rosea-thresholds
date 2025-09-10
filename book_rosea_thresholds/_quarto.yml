@@ -1,0 +1,61 @@
+project:
+  type: book
+  output-dir: _book
+
+book:
+  title: "ROSEA Threshold Analysis"
+  subtitle: "Population Exposure to ASAP Warning Levels"
+  author: "OCHA Centre for Humanitarian Data"
+  date: today
+  search: true
+  repo-url: https://github.com/OCHA-DAP/ds-rosea-thresholds
+  repo-actions: [edit, issue]
+  
+  chapters:
+    - index.qmd
+    - 01_visualize_historical_asap_exposure.qmd
+    # - part: "Data & Methodology"
+    #   chapters:
+    #     - data-sources.qmd
+    #     - methodology.qmd
+    #     - warning-levels.qmd
+    # - part: "Analysis"
+    #   chapters:
+    #     - threshold-analysis.qmd
+    #     - country-profiles.qmd
+    #     - temporal-trends.qmd
+    # - part: "Results"
+    #   chapters:
+    #     - key-findings.qmd
+    #     - visualizations.qmd
+    # - summary.qmd
+    # - references.qmd
+
+format:
+  html:
+    theme: cosmo
+    css: custom.css
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    number-depth: 3
+    code-fold: true
+    code-tools: true
+    fig-dpi: 96
+    fig-format: png
+    fig-width: 8
+    fig-height: 6
+    smooth-scroll: true
+
+execute:
+  freeze: auto
+  cache: false
+  echo: true
+  warning: false
+  error: false
+
+jupyter: 
+  kernelspec:
+    name: "ds-rosea-thresholds"
+    language: "python" 
+    display_name: "ds-rosea-thresholds"
