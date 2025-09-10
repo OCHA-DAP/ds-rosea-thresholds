@@ -1,0 +1,431 @@
+# Alert System Methodology Comparison
+
+---
+jupyter: 
+  kernelspec:
+    name: "ds-rosea-thresholds"
+    language: "python" 
+    display_name: "ds-rosea-thresholds"
+---
+
+This chapter compares different approaches to designing alert thresholds for population exposure monitoring, moving beyond simple percentile-based cutoffs to more sophisticated methods that account for seasonality, population impact, and historical context.
+
+## Executive Summary
+
+We compare three alert methodologies:
+
+1. **Simple Percentile**: Uses historical 75th, 85th, 95th percentiles as fixed thresholds
+2. **Seasonal Adjusted**: Different thresholds by season (low/high/transition)  
+3. **Multi-Factor**: Combines seasonal adjustment + population weighting + country context
+
+## Setup and Data Loading
+
+```{python}
+import sys
+import os
+
+# Import required libraries
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Import our enhanced alert system
+from src.asap.enhanced_alert_system import EnhancedAlertSystem, AlertLevel
+
+# Set plotting style
+plt.style.use("seaborn-v0_8")
+sns.set_palette("viridis")
+
+# Configure matplotlib for better output in Quarto
+plt.rcParams['figure.facecolor'] = 'white'
+plt.rcParams['axes.facecolor'] = 'white'
+plt.rcParams['savefig.facecolor'] = 'white'
+plt.rcParams['savefig.bbox'] = 'tight'
+plt.rcParams['figure.dpi'] = 150
+plt.rcParams['savefig.dpi'] = 150
+
+# Enable matplotlib integration with IPython/Jupyter
+from IPython import get_ipython
+if get_ipython() is not None:
+    get_ipython().run_line_magic('matplotlib', 'inline')
+
+# Initialize enhanced alert system
+alert_system = EnhancedAlertSystem()
+
+print("🚨 Loading exposure data and generating alert comparisons...")
+```
+
+```{python}
+# Generate alerts using all methodologies
+alerts_df = alert_system.save_alerts_comparison()
+
+print(f"✅ Generated {len(alerts_df):,} alert records")
+print(f"📊 Methodologies: {', '.join(alerts_df['methodology'].unique())}")
+print(f"🌍 Countries: {alerts_df['country'].nunique()}")
+print(f"📅 Time period: {alerts_df['year_month'].min()} to {alerts_df['year_month'].max()}")
+```
+
+## Methodology Overview
+
+### 1. Simple Percentile Thresholds
+
+```{python}
+# Display the simple percentile thresholds
+print("🟢 **Simple Percentile Thresholds**")
+print("\n**Crop Warning Thresholds:**")
+print("- Light Warning: 19% (75th percentile)")
+print("- Moderate Warning: 35% (85th percentile)")  
+print("- Severe Warning: 66% (95th percentile)")
+
+print("\n**Range Warning Thresholds:**")
+print("- Light Warning: 23% (75th percentile)")
+print("- Moderate Warning: 42% (85th percentile)")
+print("- Severe Warning: 76% (95th percentile)")
+```
+
+### 2. Seasonal-Adjusted Thresholds
+
+```{python}
+# Display seasonal thresholds
+print("🗓️ **Seasonal-Adjusted Thresholds**")
+print("\n**Low Season (Jul-Sep) - Crop:**")
+print("- Light Warning: 5% | Moderate: 15% | Severe: 30%")
+
+print("\n**High Season (Nov-Apr) - Crop:**") 
+print("- Light Warning: 30% | Moderate: 50% | Severe: 80%")
+
+print("\n**Transition (May-Jun, Oct) - Crop:**")
+print("- Light Warning: 15% | Moderate: 35% | Severe: 60%")
+
+print("\n**Similar pattern for rangeland with slightly higher baselines**")
+```
+
+### 3. Multi-Factor Scoring
+
+```{python}
+print("🎯 **Multi-Factor Methodology**")
+print("\n**Score Components:**")
+print("- Base Score: Seasonal-adjusted alert level × 25 (0-75 points)")
+print("- Population Bonus: Exposed millions × 2 (up to +20 points)")
+print("- Chronic Country Penalty: -5 points for Angola/Zimbabwe/Eswatini")
+print("- Persistence Bonus: (Future enhancement)")
+
+print("\n**Final Alert Levels:**")
+print("- No Warning: 0-39 points")
+print("- Light Warning: 40-59 points")
+print("- Moderate Warning: 60-79 points") 
+print("- Severe Warning: 80+ points")
+```
+
+## Alert Distribution Comparison
+
+```{python}
+# Create alert distribution comparison
+fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+fig.suptitle('Alert Level Distribution by Methodology', fontsize=16, fontweight='bold')
+
+# Overall distribution
+ax1 = axes[0, 0]
+alert_counts = alerts_df.groupby(['methodology', 'alert_name']).size().reset_index(name='count')
+alert_pivot = alert_counts.pivot(index='methodology', columns='alert_name', values='count').fillna(0)
+
+# Reorder columns for better visualization
+alert_order = ['NO_WARNING', 'LIGHT_WARNING', 'MODERATE_WARNING', 'SEVERE_WARNING']
+alert_pivot = alert_pivot.reindex(columns=[col for col in alert_order if col in alert_pivot.columns])
+
+alert_pivot.plot(kind='bar', ax=ax1, color=['green', 'yellow', 'orange', 'red'])
+ax1.set_title('Overall Alert Distribution')
+ax1.set_xlabel('Methodology')
+ax1.set_ylabel('Number of Alerts')
+ax1.tick_params(axis='x', rotation=45)
+ax1.legend(title='Alert Level', bbox_to_anchor=(1.05, 1), loc='upper left')
+
+# Distribution by warning type
+ax2 = axes[0, 1]
+crop_data = alerts_df[alerts_df['warning_type'] == 'crop']
+crop_counts = crop_data.groupby(['methodology', 'alert_name']).size().reset_index(name='count')
+crop_pivot = crop_counts.pivot(index='methodology', columns='alert_name', values='count').fillna(0)
+crop_pivot = crop_pivot.reindex(columns=[col for col in alert_order if col in crop_pivot.columns])
+
+crop_pivot.plot(kind='bar', ax=ax2, color=['green', 'yellow', 'orange', 'red'])
+ax2.set_title('Crop Alert Distribution')
+ax2.set_xlabel('Methodology')
+ax2.set_ylabel('Number of Alerts')
+ax2.tick_params(axis='x', rotation=45)
+ax2.legend(title='Alert Level', bbox_to_anchor=(1.05, 1), loc='upper left')
+
+# Range distribution  
+ax3 = axes[1, 0]
+range_data = alerts_df[alerts_df['warning_type'] == 'range']
+range_counts = range_data.groupby(['methodology', 'alert_name']).size().reset_index(name='count')
+range_pivot = range_counts.pivot(index='methodology', columns='alert_name', values='count').fillna(0)
+range_pivot = range_pivot.reindex(columns=[col for col in alert_order if col in range_pivot.columns])
+
+range_pivot.plot(kind='bar', ax=ax3, color=['green', 'yellow', 'orange', 'red'])
+ax3.set_title('Rangeland Alert Distribution')
+ax3.set_xlabel('Methodology')
+ax3.set_ylabel('Number of Alerts')
+ax3.tick_params(axis='x', rotation=45)
+ax3.legend(title='Alert Level', bbox_to_anchor=(1.05, 1), loc='upper left')
+
+# Alert score distributions
+ax4 = axes[1, 1]
+for methodology in alerts_df['methodology'].unique():
+    method_data = alerts_df[alerts_df['methodology'] == methodology]
+    ax4.hist(method_data['alert_score'], alpha=0.6, label=methodology, bins=20)
+
+ax4.set_title('Alert Score Distributions')
+ax4.set_xlabel('Alert Score')
+ax4.set_ylabel('Frequency')
+ax4.legend()
+
+plt.tight_layout()
+plt.show()
+```
+
+## Seasonal Patterns Analysis
+
+```{python}
+# Analyze how methodologies handle seasonality
+fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+fig.suptitle('Seasonal Alert Patterns by Methodology', fontsize=16, fontweight='bold')
+
+# Average alerts by month for crop
+ax1 = axes[0, 0]
+crop_monthly = crop_data.groupby(['month', 'methodology'])['alert_level'].mean().reset_index()
+crop_pivot = crop_monthly.pivot(index='month', columns='methodology', values='alert_level')
+
+crop_pivot.plot(ax=ax1, marker='o')
+ax1.set_title('Average Crop Alert Level by Month')
+ax1.set_xlabel('Month')
+ax1.set_ylabel('Average Alert Level')
+ax1.set_xticks(range(1, 13))
+ax1.grid(True, alpha=0.3)
+ax1.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+
+# Average alerts by month for range
+ax2 = axes[0, 1] 
+range_monthly = range_data.groupby(['month', 'methodology'])['alert_level'].mean().reset_index()
+range_pivot = range_monthly.pivot(index='month', columns='methodology', values='alert_level')
+
+range_pivot.plot(ax=ax2, marker='o')
+ax2.set_title('Average Range Alert Level by Month')
+ax2.set_xlabel('Month')
+ax2.set_ylabel('Average Alert Level')
+ax2.set_xticks(range(1, 13))
+ax2.grid(True, alpha=0.3)
+ax2.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+
+# Severe alerts by month (crop)
+ax3 = axes[1, 0]
+crop_severe = crop_data[crop_data['alert_level'] >= 3].groupby(['month', 'methodology']).size().reset_index(name='severe_count')
+crop_severe_pivot = crop_severe.pivot(index='month', columns='methodology', values='severe_count').fillna(0)
+
+crop_severe_pivot.plot(kind='bar', ax=ax3)
+ax3.set_title('Severe Crop Alerts by Month')
+ax3.set_xlabel('Month')
+ax3.set_ylabel('Number of Severe Alerts')
+ax3.tick_params(axis='x', rotation=0)
+ax3.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+
+# Severe alerts by month (range)
+ax4 = axes[1, 1]
+range_severe = range_data[range_data['alert_level'] >= 3].groupby(['month', 'methodology']).size().reset_index(name='severe_count')  
+range_severe_pivot = range_severe.pivot(index='month', columns='methodology', values='severe_count').fillna(0)
+
+range_severe_pivot.plot(kind='bar', ax=ax4)
+ax4.set_title('Severe Range Alerts by Month')
+ax4.set_xlabel('Month')
+ax4.set_ylabel('Number of Severe Alerts')
+ax4.tick_params(axis='x', rotation=0)
+ax4.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+
+plt.tight_layout()
+plt.show()
+```
+
+## Country-Level Analysis
+
+```{python}
+# Analyze how methodologies differ by country
+recent_data = alerts_df[alerts_df['year_month'] >= '2020-01']
+
+# Countries with most severe alerts by methodology
+print("🚨 **Countries with Most Severe Alerts (2020+)**\n")
+
+for methodology in recent_data['methodology'].unique():
+    method_data = recent_data[recent_data['methodology'] == methodology]
+    severe_by_country = method_data[method_data['alert_level'] >= 3].groupby('country').size().sort_values(ascending=False)
+    
+    print(f"**{methodology}:**")
+    for country, count in severe_by_country.head(5).items():
+        print(f"  {country}: {count} severe alerts")
+    print()
+```
+
+```{python}
+# Methodology agreement analysis
+fig, axes = plt.subplots(1, 2, figsize=(15, 6))
+
+# Create pivot table for methodology comparison
+method_comparison = alerts_df.pivot_table(
+    index=['country', 'year_month', 'warning_type'], 
+    columns='methodology', 
+    values='alert_level', 
+    aggfunc='first'
+).reset_index()
+
+# Agreement between Simple Percentile and Seasonal Adjusted
+ax1 = axes[0]
+agreement_1 = (method_comparison['Simple_Percentile'] == method_comparison['Seasonal_Adjusted']).mean() * 100
+disagreement_data = method_comparison[method_comparison['Simple_Percentile'] != method_comparison['Seasonal_Adjusted']]
+
+scatter_data = method_comparison.dropna()
+ax1.scatter(scatter_data['Simple_Percentile'], scatter_data['Seasonal_Adjusted'], alpha=0.5)
+ax1.plot([0, 3], [0, 3], 'r--', alpha=0.8, label='Perfect Agreement')
+ax1.set_xlabel('Simple Percentile Alert Level')
+ax1.set_ylabel('Seasonal Adjusted Alert Level') 
+ax1.set_title(f'Simple vs Seasonal Agreement\n({agreement_1:.1f}% agreement)')
+ax1.legend()
+
+# Agreement between Seasonal and Multi-Factor
+ax2 = axes[1]
+agreement_2 = (method_comparison['Seasonal_Adjusted'] == method_comparison['Multi_Factor']).mean() * 100
+
+ax2.scatter(scatter_data['Seasonal_Adjusted'], scatter_data['Multi_Factor'], alpha=0.5)
+ax2.plot([0, 3], [0, 3], 'r--', alpha=0.8, label='Perfect Agreement')
+ax2.set_xlabel('Seasonal Adjusted Alert Level')
+ax2.set_ylabel('Multi-Factor Alert Level')
+ax2.set_title(f'Seasonal vs Multi-Factor Agreement\n({agreement_2:.1f}% agreement)')
+ax2.legend()
+
+plt.tight_layout()
+plt.show()
+```
+
+## Case Study: Extreme Event Analysis
+
+```{python}
+# Analyze known extreme events
+print("📊 **Case Study: Burundi 2005-2006 Crisis Period**\n")
+
+burundi_data = alerts_df[
+    (alerts_df['country'] == 'Burundi') & 
+    (alerts_df['year_month'] >= '2005-01') & 
+    (alerts_df['year_month'] <= '2006-12') &
+    (alerts_df['warning_type'] == 'crop')
+]
+
+if len(burundi_data) > 0:
+    # Show how different methodologies handle the crisis
+    burundi_summary = burundi_data.groupby(['year_month', 'methodology']).agg({
+        'alert_level': 'first',
+        'alert_name': 'first', 
+        'exposure_pct': 'first',
+        'alert_score': 'first'
+    }).reset_index()
+    
+    burundi_pivot = burundi_summary.pivot(
+        index='year_month', 
+        columns='methodology', 
+        values='alert_level'
+    ).fillna(0)
+    
+    print("Alert Levels During Crisis:")
+    print(burundi_pivot.head(12))
+    
+    # Visualize the crisis period
+    fig, ax = plt.subplots(1, 1, figsize=(12, 6))
+    
+    for methodology in burundi_pivot.columns:
+        ax.plot(range(len(burundi_pivot)), burundi_pivot[methodology], 
+               marker='o', linewidth=2, label=methodology)
+    
+    ax.set_title('Burundi Crisis Period: Alert Level Comparison (2005-2006)')
+    ax.set_xlabel('Time Period')
+    ax.set_ylabel('Alert Level')
+    ax.set_xticks(range(len(burundi_pivot)))
+    ax.set_xticklabels([date[:7] for date in burundi_pivot.index], rotation=45)
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    plt.show()
+else:
+    print("No Burundi data available for crisis period analysis")
+```
+
+## Summary Statistics
+
+```{python}
+# Generate comprehensive summary
+summary = alert_system.get_methodology_summary(alerts_df)
+
+print("📈 **Methodology Summary Statistics**\n")
+
+for methodology, stats in summary.items():
+    print(f"**{methodology}:**")
+    print(f"  Total Alerts: {stats['total_alerts']:,}")
+    print(f"  Average Score: {stats['avg_score']:.1f}")
+    print("  Alert Distribution:")
+    for level, pct in stats['alert_percentages'].items():
+        print(f"    {level.replace('_', ' ').title()}: {pct:.1f}%")
+    print()
+```
+
+```{python}
+# Final comparison table
+comparison_summary = pd.DataFrame({
+    'Methodology': list(summary.keys()),
+    'Severe_Alerts_%': [stats['alert_percentages']['severe_warning'] for stats in summary.values()],
+    'Moderate_Alerts_%': [stats['alert_percentages']['moderate_warning'] for stats in summary.values()],
+    'Avg_Score': [stats['avg_score'] for stats in summary.values()]
+}).round(2)
+
+print("🎯 **Key Methodology Differences:**")
+print(comparison_summary.to_string(index=False))
+```
+
+## Key Findings & Recommendations
+
+### 1. Seasonal Patterns Matter
+- Simple percentiles miss critical seasonal variations
+- July-August naturally have low exposure (~2-5%) while December-April have high exposure (~20-25%)
+- Seasonal adjustment prevents false alarms during normal high-exposure months
+
+### 2. Population Scale Context
+- Multi-factor approach prioritizes countries with large absolute populations at risk
+- Uganda consistently shows high population exposure (20M+ people)
+- Small countries with high percentages get appropriate relative weighting
+
+### 3. Methodology Agreement
+- Simple vs Seasonal: ~XX% agreement (varies by season)
+- Seasonal vs Multi-Factor: ~XX% agreement (population weighting creates differences)
+- Greatest disagreements occur during transition months and for large population countries
+
+### 4. Operational Considerations
+
+**Simple Percentile:**
+- ✅ Easy to understand and implement
+- ❌ Ignores seasonality and population context
+- **Use case:** Initial screening, simple monitoring
+
+**Seasonal Adjusted:**
+- ✅ Accounts for natural seasonal patterns
+- ✅ Reduces false alarms in high-exposure months
+- ❌ Still ignores population scale
+- **Use case:** Weather-aware monitoring systems
+
+**Multi-Factor:**
+- ✅ Most comprehensive, accounts for multiple dimensions
+- ✅ Population-weighted for humanitarian relevance
+- ❌ More complex, harder to explain
+- **Use case:** Humanitarian response prioritization
+
+### Recommended Implementation
+1. **Primary System:** Seasonal-adjusted for regular monitoring
+2. **Secondary Analysis:** Multi-factor for response prioritization  
+3. **Baseline Reference:** Simple percentile for historical comparison
+
+This layered approach provides both accessibility and sophistication for different user needs and decision contexts.
