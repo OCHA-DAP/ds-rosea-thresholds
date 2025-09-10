@@ -24,8 +24,10 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from dotenv import load_dotenv
 
-# Import our ASAP analysis modules
+load_dotenv()
+# Import our ASAP analysis modules - what is happening
 from src.asap.azure_config import get_monthly_exposure_url, USE_BLOB_STORAGE
 from src.asap.blob_utils import get_azure_connection
 
@@ -34,17 +36,18 @@ plt.style.use("seaborn-v0_8")
 sns.set_palette("viridis")
 
 # Configure matplotlib for better output in Quarto
-plt.rcParams['figure.facecolor'] = 'white'
-plt.rcParams['axes.facecolor'] = 'white'
-plt.rcParams['savefig.facecolor'] = 'white'
-plt.rcParams['savefig.bbox'] = 'tight'
-plt.rcParams['figure.dpi'] = 150
-plt.rcParams['savefig.dpi'] = 150
+plt.rcParams["figure.facecolor"] = "white"
+plt.rcParams["axes.facecolor"] = "white"
+plt.rcParams["savefig.facecolor"] = "white"
+plt.rcParams["savefig.bbox"] = "tight"
+plt.rcParams["figure.dpi"] = 150
+plt.rcParams["savefig.dpi"] = 150
 
 # Enable matplotlib integration with IPython/Jupyter
 from IPython import get_ipython
+
 if get_ipython() is not None:
-    get_ipython().run_line_magic('matplotlib', 'inline')
+    get_ipython().run_line_magic("matplotlib", "inline")
 ```
 
 ```{python}
