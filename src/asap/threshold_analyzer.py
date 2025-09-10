@@ -295,7 +295,7 @@ class ThresholdAnalyzer:
             from src.asap.azure_config import STORAGE_ACCOUNT, SAS_TOKEN, CONTAINER
             
             # Build fsspec path
-            blob_path = f"abfs://projects@{STORAGE_ACCOUNT}.dfs.core.windows.net/ds-rosea-thresholds/processed/asap/threshold_analysis/monthly_country_exposure.csv"
+            blob_path = f"abfs://projects@{STORAGE_ACCOUNT}.dfs.core.windows.net/ds-rosea-thresholds/processed/asap/threshold_analysis/monthly_exposure_crop_rangeland_warnings.csv"
             
             # Create filesystem with SAS token
             fs = fsspec.filesystem('abfs', account_name=STORAGE_ACCOUNT, sas_token=SAS_TOKEN)
