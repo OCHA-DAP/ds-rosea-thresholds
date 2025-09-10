@@ -13,8 +13,11 @@ book:
   
   chapters:
     - index.qmd
-    - 01_visualize_historical_asap_exposure.qmd
-    - 03_alert_system_comparison.qmd
+    - part: "ASAP"
+      chapters:
+        - 01_visualize_historical_asap_exposure.qmd
+        - 03_alert_system_comparison.qmd
+        - 04_asap_threshold_rps.qmd
     # - part: "Data & Methodology"
     #   chapters:
     #     - data-sources.qmd

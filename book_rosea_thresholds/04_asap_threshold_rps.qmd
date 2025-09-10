@@ -1,0 +1,392 @@
+# ASAP Threshold Return Periods Analysis
+
+---
+jupyter: 
+  kernelspec:
+    name: "ds-rosea-thresholds"
+    language: "python" 
+    display_name: "ds-rosea-thresholds"
+---
+
+This chapter analyzes agricultural stress threshold return periods using annual maximum values to determine operationally viable trigger thresholds for humanitarian support packages.
+
+## Methodology: Annual Return Period Calculation
+
+Unlike monthly analysis which can trigger multiple times per year, **annual return periods** are calculated using the maximum agricultural stress values observed in each country-year. This approach reflects operational reality where support packages would not be activated multiple times within the same year.
+
+**Key Concept**: Return Period = Total Years / Years with Threshold Exceedance
+
+## Data Setup
+
+```{python}
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Set up plotting
+plt.style.use("seaborn-v0_8")
+sns.set_palette("viridis")
+plt.rcParams['figure.facecolor'] = 'white'
+plt.rcParams['axes.facecolor'] = 'white'
+plt.rcParams['savefig.facecolor'] = 'white'
+plt.rcParams['figure.dpi'] = 150
+
+print("🎯 ASAP Threshold Return Periods Analysis")
+print("Using Annual Maximum Approach for Operational Relevance")
+```
+
+```{python}
+# Load monthly exposure data
+df = pd.read_csv('../data/processed/asap/threshold_analysis/monthly_exposure_dual_warnings.csv')
+
+# Convert to annual maximums
+df['date'] = pd.to_datetime(df['year_month'])
+df['year'] = df['date'].dt.year
+
+print(f"📊 Monthly Dataset: {len(df):,} country-month records")
+print(f"Countries: {sorted(df['country'].unique())}")
+print(f"Period: {df['year'].min()}-{df['year'].max()}")
+
+# Create annual maximum dataset
+annual_max = df.groupby(['country', 'year']).agg({
+    'crop_pct_warning_3_plus': 'max',
+    'crop_pop_warning_3_plus': 'max'
+}).reset_index()
+
+print(f"\n📈 Annual Maximum Dataset: {len(annual_max):,} country-year records")
+print(f"Years per country: {len(annual_max) // len(df['country'].unique())} years")
+```
+
+## Threshold Scenarios Analysis
+
+We test four threshold scenarios to identify operationally appropriate trigger levels:
+
+```{python}
+# Define threshold scenarios
+scenarios = [
+    {'name': 'Conservative', 'pct': 60, 'pop_millions': 30, 'description': 'High threshold, rare activation'},
+    {'name': 'Moderate', 'pct': 50, 'pop_millions': 40, 'description': 'Balanced threshold for major crises'},
+    {'name': 'Balanced', 'pct': 45, 'pop_millions': 50, 'description': 'Lower threshold, more frequent activation'},
+    {'name': 'High Impact', 'pct': 80, 'pop_millions': 25, 'description': 'Population-focused threshold'}
+]
+
+print("📋 Threshold Scenarios:")
+for scenario in scenarios:
+    print(f"• {scenario['name']}: {scenario['pct']}% OR {scenario['pop_millions']}M people")
+    print(f"  {scenario['description']}")
+```
+
+## Return Period Analysis Results
+
+```{python}
+# Calculate return periods for all scenarios
+results = []
+
+for scenario in scenarios:
+    name = scenario['name']
+    pct_thresh = scenario['pct']
+    pop_thresh = scenario['pop_millions'] * 1e6
+    
+    # Apply threshold to annual maximums
+    threshold_mask = (
+        (annual_max['crop_pct_warning_3_plus'] >= pct_thresh) | 
+        (annual_max['crop_pop_warning_3_plus'] >= pop_thresh)
+    )
+    
+    triggered_years = annual_max[threshold_mask]
+    
+    # Overall statistics
+    total_country_years = len(annual_max)
+    trigger_count = len(triggered_years)
+    overall_rp = total_country_years / trigger_count if trigger_count > 0 else float('inf')
+    trigger_rate = (trigger_count / total_country_years) * 100
+    
+    # Per-country analysis
+    country_results = []
+    countries_4plus = 0
+    countries_acceptable = 0
+    countries_frequent = 0
+    
+    for country in sorted(annual_max['country'].unique()):
+        country_annual = annual_max[annual_max['country'] == country]
+        country_triggers = triggered_years[triggered_years['country'] == country]
+        
+        total_years_country = len(country_annual)
+        trigger_years_country = len(country_triggers)
+        
+        if trigger_years_country > 0:
+            country_rp = total_years_country / trigger_years_country
+            
+            if country_rp >= 4:
+                risk_category = 'Target Range (4+ years)'
+                countries_4plus += 1
+            elif country_rp >= 2:
+                risk_category = 'Acceptable (2-4 years)'
+                countries_acceptable += 1
+            else:
+                risk_category = 'Too Frequent (<2 years)'
+                countries_frequent += 1
+        else:
+            country_rp = float('inf')
+            risk_category = 'No Risk'
+            
+        country_results.append({
+            'country': country,
+            'triggers': trigger_years_country,
+            'return_period': country_rp,
+            'risk_category': risk_category
+        })
+    
+    results.append({
+        'scenario': name,
+        'pct_threshold': pct_thresh,
+        'pop_threshold': scenario['pop_millions'],
+        'overall_rp': overall_rp,
+        'trigger_rate': trigger_rate,
+        'total_triggers': trigger_count,
+        'countries_4plus': countries_4plus,
+        'countries_acceptable': countries_acceptable,
+        'countries_frequent': countries_frequent,
+        'country_results': country_results
+    })
+
+# Display summary table
+print("📊 SCENARIO COMPARISON SUMMARY")
+print("=" * 80)
+print(f"{'Scenario':<12} | {'Threshold':<15} | {'Overall RP':<10} | {'4+ Year Countries':<15} | {'Trigger Rate':<12}")
+print("-" * 80)
+
+for result in results:
+    threshold_str = f"{result['pct_threshold']}%/{result['pop_threshold']}M"
+    print(f"{result['scenario']:<12} | {threshold_str:<15} | {result['overall_rp']:<8.1f}y | {result['countries_4plus']:<13}/14 | {result['trigger_rate']:<10.1f}%")
+```
+
+## Return Period Visualizations
+
+```{python}
+# Create comprehensive visualization
+fig, axes = plt.subplots(2, 2, figsize=(20, 16))
+fig.suptitle('ASAP Grade 3+ Threshold Return Period Analysis', fontsize=18, fontweight='bold')
+
+# Colors for risk categories
+risk_colors = {
+    'Target Range (4+ years)': '#2E8B57',      # Sea Green
+    'Acceptable (2-4 years)': '#DAA520',       # Goldenrod  
+    'Too Frequent (<2 years)': '#DC143C',      # Crimson
+    'No Risk': '#708090'                       # Slate Gray
+}
+
+for idx, result in enumerate(results):
+    ax = axes[idx // 2, idx % 2]
+    
+    # Prepare data for plotting
+    countries = [cr['country'] for cr in result['country_results']]
+    return_periods = [cr['return_period'] if cr['return_period'] != float('inf') else 30 
+                     for cr in result['country_results']]
+    risk_categories = [cr['risk_category'] for cr in result['country_results']]
+    
+    # Create color mapping
+    colors = [risk_colors[cat] for cat in risk_categories]
+    
+    # Create horizontal bar chart
+    y_pos = np.arange(len(countries))
+    bars = ax.barh(y_pos, return_periods, color=colors, alpha=0.8)
+    
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(countries, fontsize=10)
+    ax.set_xlabel('Return Period (Years)', fontsize=12)
+    
+    # Set title with key metrics
+    title = f"{result['scenario']}\n({result['pct_threshold']}% OR {result['pop_threshold']}M people)"
+    subtitle = f"Overall: {result['overall_rp']:.1f}y RP | {result['countries_4plus']}/14 countries ≥4y"
+    ax.set_title(f"{title}\n{subtitle}", fontsize=12, fontweight='bold')
+    
+    ax.set_xlim(0, 30)
+    ax.grid(axis='x', alpha=0.3)
+    
+    # Add value labels on bars
+    for i, (bar, period) in enumerate(zip(bars, return_periods)):
+        if period < 30:
+            ax.text(period + 0.5, i, f'{period:.1f}y', va='center', fontsize=9)
+        else:
+            ax.text(period - 1, i, 'Never', va='center', ha='right', fontsize=9)
+
+# Add legend
+legend_elements = [plt.Rectangle((0,0),1,1, facecolor=color, alpha=0.8, label=label) 
+                   for label, color in risk_colors.items()]
+fig.legend(handles=legend_elements, loc='center', bbox_to_anchor=(0.5, 0.02), 
+           ncol=4, title='Risk Categories', title_fontsize=12)
+
+plt.tight_layout()
+plt.subplots_adjust(bottom=0.1)
+plt.show()
+```
+
+## Country Risk Profiles
+
+```{python}
+# Create detailed country risk profiles
+print("🌍 DETAILED COUNTRY RISK PROFILES")
+print("=" * 70)
+
+# Focus on the recommended "Moderate" scenario
+moderate_result = next(r for r in results if r['scenario'] == 'Moderate')
+
+print(f"**Recommended Threshold: 50% OR 40M people**")
+print(f"Overall Return Period: {moderate_result['overall_rp']:.1f} years")
+print(f"Countries with Target Range (4+ years): {moderate_result['countries_4plus']}/14")
+print()
+
+# Sort countries by return period for better presentation
+country_data = moderate_result['country_results']
+country_data.sort(key=lambda x: x['return_period'] if x['return_period'] != float('inf') else 1000)
+
+print(f"{'Country':<12} | {'Triggers':<8} | {'Return Period':<13} | {'Risk Assessment':<20}")
+print("-" * 70)
+
+target_countries = []
+acceptable_countries = []
+frequent_countries = []
+no_risk_countries = []
+
+for country_info in country_data:
+    country = country_info['country']
+    triggers = country_info['triggers']
+    rp = country_info['return_period']
+    category = country_info['risk_category']
+    
+    if rp == float('inf'):
+        rp_str = "Never"
+        no_risk_countries.append(country)
+    else:
+        rp_str = f"{rp:.1f} years"
+        if rp >= 4:
+            target_countries.append(country)
+        elif rp >= 2:
+            acceptable_countries.append(country)
+        else:
+            frequent_countries.append(country)
+    
+    print(f"{country:<12} | {triggers:<8} | {rp_str:<13} | {category}")
+
+print(f"\n📋 OPERATIONAL IMPLICATIONS:")
+print(f"🎯 Target Range Countries ({len(target_countries)}): " + ", ".join(target_countries))
+print(f"✅ Acceptable Range Countries ({len(acceptable_countries)}): " + ", ".join(acceptable_countries))
+if frequent_countries:
+    print(f"⚠️  Too Frequent Countries ({len(frequent_countries)}): " + ", ".join(frequent_countries))
+if no_risk_countries:
+    print(f"🔘 No Historical Risk ({len(no_risk_countries)}): " + ", ".join(no_risk_countries))
+```
+
+## Historical Activation Timeline
+
+```{python}
+# Show historical activations for the recommended threshold
+print("📅 HISTORICAL ACTIVATION TIMELINE (50% OR 40M people)")
+print("=" * 60)
+
+moderate_result = next(r for r in results if r['scenario'] == 'Moderate')
+pct_thresh = 50
+pop_thresh = 40e6
+
+# Find all historical activations
+threshold_mask = (
+    (annual_max['crop_pct_warning_3_plus'] >= pct_thresh) | 
+    (annual_max['crop_pop_warning_3_plus'] >= pop_thresh)
+)
+historical_activations = annual_max[threshold_mask].sort_values(['year', 'country'])
+
+print(f"Total Activations: {len(historical_activations)} country-years over {annual_max['year'].nunique()} years")
+print()
+
+# Group by year to show system-wide activation patterns
+yearly_activations = historical_activations.groupby('year').size()
+print("Years with Multiple Country Activations:")
+for year, count in yearly_activations.items():
+    if count > 1:
+        countries_that_year = historical_activations[historical_activations['year'] == year]['country'].tolist()
+        print(f"  {year}: {count} countries - {', '.join(countries_that_year)}")
+
+print(f"\nRecent Major Activations (2020-2025):")
+recent = historical_activations[historical_activations['year'] >= 2020].sort_values('year', ascending=False)
+
+for _, row in recent.head(10).iterrows():
+    pct_val = row['crop_pct_warning_3_plus']
+    pop_val = row['crop_pop_warning_3_plus'] / 1e6
+    trigger_reason = "Population" if row['crop_pop_warning_3_plus'] >= pop_thresh else "Percentage"
+    print(f"  {row['country']} {row['year']}: {pct_val:.1f}% | {pop_val:.1f}M people ({trigger_reason} trigger)")
+```
+
+## System-Wide Activation Analysis
+
+```{python}
+# Analyze system-wide activation patterns
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
+
+# 1. Activation frequency by year
+yearly_counts = historical_activations.groupby('year').size()
+all_years = range(annual_max['year'].min(), annual_max['year'].max() + 1)
+yearly_counts = yearly_counts.reindex(all_years, fill_value=0)
+
+ax1.bar(yearly_counts.index, yearly_counts.values, alpha=0.7, color='steelblue')
+ax1.set_xlabel('Year', fontsize=12)
+ax1.set_ylabel('Number of Country Activations', fontsize=12)
+ax1.set_title('Annual Activation Frequency\n(50% OR 40M people threshold)', fontsize=14, fontweight='bold')
+ax1.grid(axis='y', alpha=0.3)
+
+# Highlight major activation years
+major_years = yearly_counts[yearly_counts >= 2].index
+for year in major_years:
+    ax1.axvline(x=year, color='red', linestyle='--', alpha=0.7)
+    ax1.text(year, yearly_counts[year] + 0.1, str(year), rotation=45, ha='center', fontsize=9)
+
+# 2. Country activation frequency
+country_counts = historical_activations.groupby('country').size().sort_values(ascending=True)
+
+ax2.barh(range(len(country_counts)), country_counts.values, alpha=0.7, color='darkgreen')
+ax2.set_yticks(range(len(country_counts)))
+ax2.set_yticklabels(country_counts.index, fontsize=10)
+ax2.set_xlabel('Total Activations (25 years)', fontsize=12)
+ax2.set_title('Country Activation Frequency\n(50% OR 40M people threshold)', fontsize=14, fontweight='bold')
+ax2.grid(axis='x', alpha=0.3)
+
+# Add activation count labels
+for i, (country, count) in enumerate(country_counts.items()):
+    ax2.text(count + 0.1, i, str(count), va='center', fontsize=9)
+
+plt.tight_layout()
+plt.show()
+
+# Summary statistics
+print(f"\n📊 SYSTEM ACTIVATION STATISTICS:")
+print(f"Average activations per year: {len(historical_activations) / annual_max['year'].nunique():.1f}")
+print(f"Years with no activations: {sum(yearly_counts == 0)}/{len(yearly_counts)}")
+print(f"Years with multiple activations: {sum(yearly_counts >= 2)}/{len(yearly_counts)}")
+print(f"Maximum activations in a single year: {yearly_counts.max()} ({yearly_counts.idxmax()})")
+```
+
+## Key Findings and Recommendations
+
+### **Recommended Threshold: 50% OR 40 Million People**
+
+The analysis identifies **50% OR 40M people** as the optimal threshold for Grade 3+ agricultural stress:
+
+#### **Operational Advantages:**
+- **Overall System Return Period**: 7.6 years (sustainable activation frequency)
+- **Target Range Coverage**: 10 out of 14 countries achieve 4+ year return periods
+- **Historical Validation**: Captures known major crises (Malawi 2022-2024, Zambia 2021-2022)
+- **Balanced Approach**: Combines percentage-based (small country severity) and population-based (large country impact) triggers
+
+#### **Country-Specific Return Periods:**
+- **Low Frequency (10+ years)**: Angola (12.5y), Madagascar (25y), Namibia (25y), Rwanda (12.5y)
+- **Target Range (4-10 years)**: Burundi (8.3y), Uganda (8.3y), Zambia (6.2y), Zimbabwe (5.0y), Eswatini (5.0y), Malawi (4.2y)
+- **Acceptable Range (3-4 years)**: Kenya (3.6y), Lesotho (3.6y)
+- **No Historical Risk**: Comoros, Djibouti
+
+#### **Historical Context:**
+- System would have activated **46 times** over 25 years (1.8 activations per year on average)
+- Major activation years: 2022 (multiple Southern African droughts), 2024 (ongoing Malawi crisis)
+- No single country dominates activation frequency, indicating balanced regional coverage
+
+This threshold provides OCHA with an evidence-based, operationally viable framework for triggering graduated humanitarian support packages based on agricultural stress severity.
