@@ -70,6 +70,7 @@ def _():
     import plotly.express as px
     import requests 
     import os
+    import plotly.graph_objects as go
     from dotenv import load_dotenv
 
     load_dotenv()
@@ -93,11 +94,11 @@ def _():
     }
 
     severity_levels = ["3+", "4+"]
-    return iso3s, os, pd, px, requests, severity_levels
+    return go, iso3s, pd, px, requests
 
 
 @app.cell
-def _(os, pd, requests):
+def _(pd, requests):
     def get_ipc_from_hapi(iso3=None):
         endpoint = (
             "https://hapi.humdata.org/api/v2/food-security-nutrition-poverty/food-security"
@@ -128,7 +129,6 @@ def _(os, pd, requests):
                 "location_code",
                 "ipc_phase",
                 "ipc_type",
-                "population_in_phase",
                 "population_fraction_in_phase",
                 "From",
                 "To",
@@ -144,7 +144,7 @@ def _(os, pd, requests):
         dff = df[df.ipc_phase == "4+"]
         dff = (
             dff.groupby(["From", "To", "location_code", "ipc_type", "year", "ipc_phase"])
-            .agg({"population_in_phase": "sum", "population_fraction_in_phase": "sum"})
+            .agg({"population_fraction_in_phase": "sum"})
             .reset_index()
         )
         return pd.concat([df_all, dff])
@@ -164,7 +164,7 @@ def _(mo):
 
 
 @app.cell
-def _(combine_4_plus, get_ipc_from_hapi, iso3s):
+def _(combine_4_plus, get_ipc_from_hapi, iso3s, pd):
     # Get all IPC data
     df_all = get_ipc_from_hapi()
 
@@ -179,8 +179,44 @@ def _(combine_4_plus, get_ipc_from_hapi, iso3s):
     # Prioritize current over first proj over second proj
     priority = {"current": 1, "first projection": 2, "second projection": 3}
     df_all_["priority"] = df_all_["ipc_type"].map(priority)
-    df_all_ = df_all_.sort_values(["location_code", "priority"]).drop_duplicates(["location_code", "ipc_phase", "From", "To"], keep="first")
-    return (df_all_,)
+    df_all_long = df_all_.sort_values(["location_code", "priority"]).drop_duplicates(["location_code", "ipc_phase", "From", "To"], keep="first")
+    df_all_long = df_all_long.sort_values(["location_code", "From"], ascending=True)
+
+    # Convert the data to wide format
+    df_all_wide = df_all_long.pivot(index=[col for col in df_all_long.columns if col not in ['ipc_phase', 'population_fraction_in_phase']], 
+                       columns='ipc_phase', 
+                       values='population_fraction_in_phase').reset_index()
+    df_all_wide = df_all_wide.sort_values(['location_code', 'From'])
+
+    # Check that it's half the length, because we made the 3+ and 4+
+    # categories wide
+    assert(len(df_all_wide) == (len(df_all_long) / 2))
+
+    # Calculate percentage point change by location
+    df_all_wide['pt_change_3+'] = df_all_wide.groupby('location_code')['3+'].diff() * 100
+    df_all_wide['pt_change_4+'] = df_all_wide.groupby('location_code')['4+'].diff() * 100
+
+    # Convert back to a long format for visualization
+    df_all_wide.rename(columns={
+        "3+": "proportion_3+",
+        "4+": "proportion_4+"
+    }, inplace=True)
+
+    df_all_long = pd.wide_to_long(
+        df_all_wide,
+        stubnames=['proportion_', 'pt_change_'],
+        i=['location_code', 'ipc_type', 'From', 'To', 'year', 'priority'],
+        j='phase',
+        sep='',
+        suffix=r'\d\+'
+    ).reset_index()
+    df_all_long = df_all_long.rename(
+        columns={
+            "proportion_": "proportion",
+            "pt_change_": "pt_change"
+        }
+    )
+    return df_all_long, df_all_wide
 
 
 @app.cell
@@ -196,14 +232,14 @@ def _(box_display):
 
 
 @app.cell
-def _(box_display, df_all_, px):
+def _(box_display, df_all_long, px):
     # Display box plot
     if box_display.value:
-        fig_box = px.box(df_all_, x='location_code', y='population_fraction_in_phase', facet_row="ipc_phase", template="simple_white", title="Distribution of population in phase by country", height=350)
+        fig_box = px.box(df_all_long, x='location_code', y='proportion', facet_row="phase", template="simple_white", title="Distribution of population in phase by country", height=350)
         fig_box.update_yaxes(title="% of population")
         fig_box.update_xaxes(title='Country')
     else:
-        fig_box = px.box(df_all_, y='population_fraction_in_phase', x='ipc_phase', template='simple_white', title="Distribution of population in phase", height=350)
+        fig_box = px.box(df_all_long, y='proportion', x='phase', template='simple_white', title="Distribution of population in phase", height=350)
         fig_box.update_yaxes(title="% of population")
         fig_box.update_xaxes(title='IPC Phase')
     fig_box.update_layout(margin=dict(l=0, r=0, t=40, b=0))
@@ -211,9 +247,21 @@ def _(box_display, df_all_, px):
 
 
 @app.cell
-def _(df_all_, mo):
-    df_all_sorted = df_all_.sort_values(["From", "location_code"], ascending=False)
-    mo.accordion({"#### See all IPC data": df_all_sorted})
+def _(df_all_wide, pd):
+    pd.wide_to_long(
+        df_all_wide,
+        stubnames=['proportion_', 'pt_change_'],
+        i=['location_code', 'ipc_type', 'From', 'To', 'year', 'priority'],
+        j='phase',
+        sep='',
+        suffix=r'\d\+'
+    ).reset_index()
+    return
+
+
+@app.cell
+def _(df_all_wide, mo):
+    mo.accordion({"#### See all IPC data": df_all_wide})
     return
 
 
@@ -230,33 +278,31 @@ def _(mo):
 
 
 @app.cell
-def _(iso3s, mo, severity_levels):
+def _(iso3s, mo):
     # With search functionality
     iso3_dropdown = mo.ui.dropdown(
         options=iso3s,
         label="Choose a country",
         searchable=True,
     )
-    severity_dropdown = mo.ui.dropdown(
-        options=severity_levels,
-        value=severity_levels[0],
-        label="Choose a severity level",
+    value_radio = mo.ui.radio(
+        options=["proportion", "pt_change"], 
+        label="Choose value to display:", 
+        value="proportion", 
+        inline=True
     )
-    return iso3_dropdown, severity_dropdown
+    return iso3_dropdown, value_radio
 
 
 @app.cell
-def _(iso3_dropdown, mo, severity_dropdown):
-    mo.hstack([iso3_dropdown, severity_dropdown], justify='start')
+def _(iso3_dropdown, mo, value_radio):
+    mo.hstack([iso3_dropdown, value_radio], justify='start')
     return
 
 
 @app.cell
-def _(df_all_, iso3_dropdown, severity_dropdown):
-    df_sel = df_all_[
-        (df_all_.location_code == iso3_dropdown.value) &
-        (df_all_.ipc_phase == severity_dropdown.value)
-    ]
+def _(df_all_long, iso3_dropdown):
+    df_sel = df_all_long[df_all_long.location_code == iso3_dropdown.value]
     return (df_sel,)
 
 
@@ -267,72 +313,33 @@ def _(df_sel, iso3_dropdown, mo):
 
 
 @app.cell
-def _(df_sel, pd):
-    # Create daily data by expanding each range into individual days
-    daily_data = []
+def _(df_sel, go, iso3_dropdown, pd, value_radio):
+    _fig = go.Figure()
+    color_map = {'3+': 'blue', '4+': 'red'}
+    title_var = "Percent change in affected population" if value_radio.value == "pt_change" else "Proportion of population in phase"
+    y_axis_range = [-100, 100] if value_radio.value == "pt_change" else [0,1]
 
+    # Add trace for each row
     for _, row in df_sel.iterrows():
-        date_range = pd.date_range(
-            start=row["From"], end=row["To"], freq="D"
-        )
-
-        # Add one row for each day in the range
-        for date in date_range:
-            daily_data.append(
-                {
-                    "date": date,
-                    "population_fraction_in_phase": row["population_fraction_in_phase"],
-                    "population_in_phase": row["population_in_phase"],
-                    "ipc_type": row["ipc_type"],
-                    "priority": row["priority"]
-                }
-            )
-
-    # Create daily dataframe
-    df_daily = pd.DataFrame(daily_data)
-    df_daily["year"] = df_daily.date.dt.year
-    df_daily["day"] = df_daily.date.dt.dayofyear
-
-    # Drop duplicates again, just in case there are report periods that overlap
-    df_daily = df_daily.sort_values(["priority"]).drop_duplicates(["date"], keep="first")
-    return (df_daily,)
-
-
-@app.cell
-def _(df_daily, iso3_dropdown, px, severity_dropdown):
-    # Create heatmap
-    fig = px.imshow(
-        df_daily.pivot(
-            index="year", columns="day", values="population_fraction_in_phase"
-        ),
-        aspect="auto",
-        range_color=[0,1],
-        color_continuous_scale="Reds",
-        title=f"Daily IPC Phase {severity_dropdown.value} Population Fraction in {iso3_dropdown.selected_key}",
-        labels={"x": "Day of Year", "y": "Year", "color": "Population Fraction"},
-        template="simple_white"
+        dates = pd.date_range(row['From'], row['To'])
+        _fig.add_trace(go.Scatter(
+            x=dates, 
+            fill='tozeroy',
+            y=[row[value_radio.value]] * len(dates),
+            line=dict(color=color_map[row['phase']]),
+            showlegend=False
+        ))
+    # Add legend entries for color mapping
+    _fig.add_trace(go.Scatter(x=[None], y=[None], mode='lines', 
+                            line=dict(color='blue'), name='3+', showlegend=True))
+    _fig.add_trace(go.Scatter(x=[None], y=[None], mode='lines', 
+                            line=dict(color='red'), name='4+', showlegend=True))
+    _fig.update_layout(
+        template="simple_white",
+        yaxis=dict(showgrid=True, gridcolor='lightgrey', range=y_axis_range),
+        title=f"{title_var} in {iso3_dropdown.selected_key}"
     )
-
-    # Update layout
-    fig.update_layout(
-        xaxis_title='Month',
-        yaxis_title='Year',
-        coloraxis_colorbar=dict(tickformat='.0%'),
-        margin=dict(l=0, r=0, t=40, b=0)
-    )
-
-    fig.update_yaxes(dtick=1)
-
-    # Update x-axis to show month names at appropriate positions
-    import calendar
-    fig.update_xaxes(
-        tickmode='array',
-        tickvals=[1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335],  # Approximate start of each month
-        ticktext=[calendar.month_abbr[i] for i in range(1, 13)],  # Jan, Feb, Mar, etc.
-        showgrid=False
-    )
-
-    fig
+    _fig
     return
 
 
@@ -356,46 +363,44 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    ipc_3 = mo.ui.slider(start=0, stop=1, step=0.01, label="**Minimum proportion in IPC 3+**", value=0.3, show_value=True)
-    ipc_4 = mo.ui.slider(start=0, stop=1, step=0.01, label="**Minimum proportion in IPC 4+**", value=0.1, show_value=True)
+    ipc_3 = mo.ui.slider(start=0, stop=1, step=0.01, label="**Minimum proportion in IPC 3+**", value=0.3, show_value=True, debounce=True)
+    ipc_4 = mo.ui.slider(start=0, stop=1, step=0.01, label="**Minimum proportion in IPC 4+**", value=0.1, show_value=True, debounce=True)
+    mo.hstack([ipc_3, ipc_4])
     return ipc_3, ipc_4
 
 
 @app.cell
-def _(ipc_3, ipc_4, mo):
-    mo.hstack([ipc_3, ipc_4])
-    return
+def _(mo):
+    ipc_3_change = mo.ui.slider(start=0, stop=100, step=1, label="**Minimum point increase in IPC 3+**", value=10, show_value=True, debounce=True)
+    ipc_4_change = mo.ui.slider(start=0, stop=100, step=1, label="**Minimum point increase in IPC 4+**", value=5, show_value=True, debounce=True)
+    mo.hstack([ipc_3_change, ipc_4_change])
+    return ipc_3_change, ipc_4_change
 
 
 @app.cell
-def _(ipc_3, ipc_4, mo):
-    mo.md(f"""Filtering data to select cases with minumim proportion of population in **IPC 3+ = {ipc_3.value}** AND minimum proportion of population in **IPC 4+ = {ipc_4.value}**""")
-    return
+def _(df_all_wide, ipc_3, ipc_3_change, ipc_4, ipc_4_change, iso3s):
+    df_triggers = df_all_wide[
+        (df_all_wide["proportion_3+"] >= ipc_3.value) & 
+        (df_all_wide["proportion_4+"] >= ipc_4.value) 
+    ]
+
+    if ipc_3_change.value != 0:
+        df_triggers = df_triggers[
+            df_all_wide["pt_change_3+"] >= (ipc_3_change.value)
+        ]
+
+    if ipc_4_change.value != 0:
+        df_triggers = df_triggers[
+            df_all_wide["pt_change_4+"] >= (ipc_4_change.value)
+        ]
 
 
-@app.cell
-def _(df_all_):
-    # Convert the data to wide format
-    _df = df_all_.drop("population_in_phase", axis=1)
-    df_wide = _df.pivot(index=[col for col in _df.columns if col not in ['ipc_phase', 'population_fraction_in_phase']], 
-                       columns='ipc_phase', 
-                       values='population_fraction_in_phase')
-
-    # Reset index to make all columns regular columns again
-    df_wide = df_wide.reset_index()
-    assert(len(df_wide) == (len(df_all_) / 2))
-    return (df_wide,)
-
-
-@app.cell
-def _(df_wide, ipc_3, ipc_4, iso3s):
-    df_triggers = df_wide[(df_wide["3+"] >= ipc_3.value) & (df_wide["4+"] >= ipc_4.value)]
     iso3_to_country = {v: k for k, v in iso3s.items()}
-    df_triggers['country'] = df_wide['location_code'].map(iso3_to_country)
+    df_triggers['country'] = df_triggers['location_code'].map(iso3_to_country)
     df_triggers.sort_values("From", inplace=True)
     df_triggers["From"] = df_triggers['From'].dt.strftime('%b %d, %Y')
     df_triggers["To"] = df_triggers['To'].dt.strftime('%b %d, %Y')
-    df_triggers = df_triggers[["country", "From", "To", "3+", "4+"]]
+    df_triggers = df_triggers[["country", "From", "To", "proportion_3+", "proportion_4+", "pt_change_3+", "pt_change_4+"]]
     df_triggers
     return
 
