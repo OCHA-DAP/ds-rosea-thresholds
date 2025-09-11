@@ -246,18 +246,6 @@ def _(box_display, df_all_long, px):
     return
 
 
-@app.cell
-def _(df_all_wide, pd):
-    pd.wide_to_long(
-        df_all_wide,
-        stubnames=['proportion_', 'pt_change_'],
-        i=['location_code', 'ipc_type', 'From', 'To', 'year', 'priority'],
-        j='phase',
-        sep='',
-        suffix=r'\d\+'
-    ).reset_index()
-    return
-
 
 @app.cell
 def _(df_all_wide, mo):
