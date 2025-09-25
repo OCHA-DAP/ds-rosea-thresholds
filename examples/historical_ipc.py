@@ -313,7 +313,7 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(r"""The table below summarizes some initial proposed thresholds for four levels of alert based on incoming IPC reports. Each alert level is tied to a specific support package. Note that the "high" and "extreme" alert levels each have two potential trigger conditions, designed to capture both severe crises OR rapidly deteriorating conditions. The table below also summarizes some key statistics per alert level based on a historical analysis of IPC data (as shown in the charts below).""")
+    mo.md(r"""The table below summarizes some initial proposed thresholds for four levels of alert based on incoming IPC reports. Each alert level is tied to a specific support package. Note that the "high" and "extreme" alert levels each have two potential trigger conditions, designed to capture both severe crises OR rapidly deteriorating conditions. **Note** that we do not evaluate for deteriorating conditions across reports where the population analyzed is significantly different (>10%).  The table below also summarizes some key statistics per alert level based on a historical analysis of IPC data (as shown in the charts below).""")
     return
 
 
@@ -930,6 +930,7 @@ def _(
                 fill='tozeroy',
                 fillcolor=f"rgba{(*mcolors.hex2color(base_color), opacity)}",
                 y=[row[f"{value_radio.value}_{val}"]] * len(dates),
+                # line=dict(width=0),
                 line=dict(color=level_colors[row['cat_1']]),
                 showlegend=show_legend and val=="3+",
                 name=row['cat_1'],
