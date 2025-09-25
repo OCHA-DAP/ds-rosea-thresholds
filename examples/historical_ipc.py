@@ -1139,5 +1139,17 @@ def _(mo):
     return
 
 
+@app.cell
+def _(mo):
+    mo.md(r"""## 4. View and download data""")
+    return
+
+
+@app.cell
+def _(df_summary):
+    df_summary[['country', 'From', 'To', 'category', 'ipc_type', 'population_analyzed', 'proportion_3+', 'proportion_4+', 'pt_change_3+', 'pt_change_4+']]
+    return
+
+
 if __name__ == "__main__":
     app.run()
