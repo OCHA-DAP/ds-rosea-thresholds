@@ -78,6 +78,8 @@ def _():
 
     load_dotenv()
 
+    import ocha_stratus as stratus
+
     iso3s = {
         'Angola': 'AGO',
         'Burundi': 'BDI',
@@ -97,7 +99,7 @@ def _():
     }
 
     severity_levels = ["3+", "4+"]
-    return go, iso3s, make_subplots, mcolors, np, pd, px, requests
+    return go, iso3s, make_subplots, mcolors, np, pd, px, requests, stratus
 
 
 @app.cell
@@ -496,9 +498,10 @@ def _(df_all_wide, df_summary_sel, mo, np):
 
 
 @app.cell
-def _(iso3s, pd):
+def _(iso3s, pd, stratus):
     # Clean surge data
-    df_ = pd.read_csv("examples/data/rosea_surge_20202024.csv")
+    # df_ = pd.read_csv("examples/data/rosea_surge_20202024.csv")
+    df_ = stratus.load_csv_from_blob("ds-rosea-thresholds/rosea_surge_20202024.csv")
     df_clean = df_.copy()
     df_clean['start_date'] = pd.to_datetime(df_clean['Date of departure'], format='mixed', dayfirst=True)
     df_clean['end_date'] = pd.to_datetime(df_clean['Date of return'], format='mixed', dayfirst=True)
@@ -511,14 +514,16 @@ def _(iso3s, pd):
     df_surge = df_clean[['country', "surge_type", "start_date", "end_date", "location_code"]]
 
     # Clean flash appeal data
-    df_fa = pd.read_csv("examples/data/flash_appeals.csv")
+    # df_fa = pd.read_csv("examples/data/flash_appeals.csv")
+    df_fa = stratus.load_csv_from_blob("ds-rosea-thresholds/flash_appeals.csv")
     df_fa['date'] = pd.to_datetime(df_fa[" Original PDF Publication Date "], dayfirst=True)
     df_fa.rename(columns={"Country Name": "country", " Final Requirements": "requirements"}, inplace=True)
     df_fa['location_code'] = df_fa['country'].map(iso3s)
     df_fa = df_fa[['country', "date", "requirements", "location_code"]]
 
     # Clean the cerf data
-    df_cerf = pd.read_csv("examples/data/cerf.csv")
+    # df_cerf = pd.read_csv("examples/data/cerf.csv")
+    df_cerf = stratus.load_csv_from_blob("ds-rosea-thresholds/cerf.csv")
     df_cerf["regionName_l"] = df_cerf["regionName"].astype(str).str.strip().str.casefold()
     df_cerf["emergencyTypeName_l"] = df_cerf["emergencyTypeName"].astype(str).str.strip().str.casefold()
     df_cerf["window_l"] = df_cerf["windowFullName"].astype(str).str.strip().str.casefold()
