@@ -284,7 +284,7 @@ def _(df_all_wide, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## 3. Validate thresholds""")
+    mo.md(r"""## 2. Validate thresholds""")
     return
 
 
@@ -297,6 +297,7 @@ def _(mo):
 @app.cell
 def _(
     df_all_wide,
+    h_d_d3,
     h_d_p3,
     h_s_p3,
     h_s_p4,
@@ -316,9 +317,9 @@ def _(
         D4 = row.get("pt_change_4+", np.nan)
 
         VH_S = (P3 >= vh_s_p3.value and P4 >= vh_s_p4.value)
-        VH_D = (P3 >= vh_d_p3.value and D3 >= vh_d_d3.value and D4 >= vh_d_d4.value)
+        VH_D = (P3 >= vh_d_p3.value and D3 >= vh_d_d3.value*100 and D4 >= vh_d_d4.value*100)
         H_S = (P3 >= h_s_p3.value and P4 >= h_s_p4.value)
-        H_D = (P3 >= h_d_p3.value and D3 >= h_d_p3.value)
+        H_D = (P3 >= h_d_p3.value and D3 >= h_d_d3.value*100)
         M = (P3 >= m_p3.value)
 
         if (VH_S and VH_D):
@@ -815,11 +816,6 @@ def _(
 
 
 @app.cell
-def _():
-    return
-
-
-@app.cell
 def _(mo):
     mo.md(r"""We can drill down even further into specific countries by looking at the plot below. Here, we can get a closer look at how well various alert levels correlate with the timing of past surge support and funding disbursements.""")
     return
@@ -832,6 +828,7 @@ def _(iso3s, mo):
         options=iso3s,
         label="Choose a country",
         searchable=True,
+        value="Angola"
     )
     value_radio = mo.ui.radio(
         options=["proportion", "pt_change"], 
@@ -1053,7 +1050,7 @@ def _(mo):
         r"""
     ## 3. Adjust threshold values
 
-    Use the inputs below to
+    Use the inputs below to change the threshold levels for each alert category. The table and plots above will be updated accordingly.
     """
     )
     return
