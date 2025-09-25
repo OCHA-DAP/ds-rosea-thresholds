@@ -1,7 +1,11 @@
 import marimo
 
-__generated_with = "0.15.2"
-app = marimo.App(width="medium", app_title="ROSEA IPC Thresholds")
+__generated_with = "0.16.2"
+app = marimo.App(
+    width="medium",
+    app_title="ROSEA IPC Thresholds",
+    css_file="assets/custom.css",
+)
 
 
 @app.cell
@@ -96,13 +100,23 @@ def _():
         'Zambia': 'ZMB',
         'Zimbabwe': 'ZWE'
     }
-
-    severity_levels = ["3+", "4+"]
-    return go, iso3s, make_subplots, mcolors, np, pd, px, requests, stratus
+    iso3_to_country = {v: k for k, v in iso3s.items()}
+    return (
+        go,
+        iso3_to_country,
+        iso3s,
+        make_subplots,
+        np,
+        os,
+        pd,
+        px,
+        requests,
+        stratus,
+    )
 
 
 @app.cell
-def _(pd, requests, os):
+def _(os, pd, requests):
     def get_ipc_from_hapi(iso3=None):
         endpoint = (
             "https://hapi.humdata.org/api/v2/food-security-nutrition-poverty/food-security"
@@ -266,62 +280,6 @@ def _(df_all_wide, mo):
     return
 
 
-@app.cell
-def _(mo):
-    mo.md(
-        r"""
-    ## 2. Select thresholds for alerts
-
-    Use the sliders below to design potential triggers for IPC data monitoring. The table will show historical cases, per country, that would have met the set trigger conditions.
-    """
-    )
-    return
-
-
-@app.cell
-def _(mo):
-    ipc_3 = mo.ui.slider(start=0, stop=1, step=0.01, label="**Minimum proportion in IPC 3+**", value=0.3, show_value=True, debounce=True)
-    ipc_4 = mo.ui.slider(start=0, stop=1, step=0.01, label="**Minimum proportion in IPC 4+**", value=0.1, show_value=True, debounce=True)
-    mo.hstack([ipc_3, ipc_4])
-    return ipc_3, ipc_4
-
-
-@app.cell
-def _(mo):
-    ipc_3_change = mo.ui.slider(start=0, stop=100, step=1, label="**Minimum point increase in IPC 3+**", value=10, show_value=True, debounce=True)
-    ipc_4_change = mo.ui.slider(start=0, stop=100, step=1, label="**Minimum point increase in IPC 4+**", value=5, show_value=True, debounce=True)
-    mo.hstack([ipc_3_change, ipc_4_change])
-    return ipc_3_change, ipc_4_change
-
-
-@app.cell
-def _(df_all_wide, ipc_3, ipc_3_change, ipc_4, ipc_4_change, iso3s):
-    df_triggers = df_all_wide[
-        (df_all_wide["proportion_3+"] >= ipc_3.value) & 
-        (df_all_wide["proportion_4+"] >= ipc_4.value) 
-    ]
-
-    if ipc_3_change.value != 0:
-        df_triggers = df_triggers[
-            df_all_wide["pt_change_3+"] >= (ipc_3_change.value)
-        ]
-
-    if ipc_4_change.value != 0:
-        df_triggers = df_triggers[
-            df_all_wide["pt_change_4+"] >= (ipc_4_change.value)
-        ]
-
-
-    iso3_to_country = {v: k for k, v in iso3s.items()}
-    df_triggers['country'] = df_triggers['location_code'].map(iso3_to_country)
-    df_triggers.sort_values("From", inplace=True)
-    df_triggers["From"] = df_triggers['From'].dt.strftime('%b %d, %Y')
-    df_triggers["To"] = df_triggers['To'].dt.strftime('%b %d, %Y')
-    df_triggers = df_triggers[["country", "location_code", "From", "To", "proportion_3+", "proportion_4+", "pt_change_3+", "pt_change_4+"]]
-    df_triggers
-    return (iso3_to_country,)
-
-
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""## 3. Validate thresholds""")
@@ -330,34 +288,36 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
-    The table below summarizes some initial proposed thresholds for four levels of alert based on incoming IPC reports. Each alert level is tied to a specific support package. Note that the "high" and "extreme" alert levels each have two potential trigger conditions, designed to capture both severe crises OR rapidly deteriorating conditions. The table below also summarizes some key statistics per alert level based on a historical analysis of IPC data (as shown in the charts below).
-
-    | **Category** | **Description**                                                                                                                                                                                                                            | **Support Package**                                          | **Num. Reports that <br>meet criteria** | **Percentage of all<br>IPC reports** | **Average<br>annual** |
-    |:--------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------|:-----------------------------------------|:--------------------------------------|-:----------------------|
-    | Low          | Less than 15% of the population in IPC 3+                                                                                                                                                                                                  | No Support                                                   | 77                                      | 31.7%                                | 8.6                   |
-    | Medium       | Between 15% and 25% of the population in IPC 3+                                                                                                                                                                                            | Remote Support + <br>Flash Appeal                            | 101                                     | 41.6%                                | 10.1                  |
-    | High         | **Deteriorating crises**:<br> At least 25% of the population in IPC 3+ AND at least a 3% increase in IPC 3+<br>  OR<br> **Severe crises**:<br> At least 25% of the total population in IPC 3+ AND 3% of total in IPC4+                     | Physical Surge Support + <br>Flash Appeal                    | 34                                      | 14%                                  | 4.2                   |
-    | Extreme      | **Deteriorating crises**:<br> At least 30% of the population in IPC 3+ AND at least a 5% increase in IPC 3+ AND at least 2% increase in IPC 4+<br>  OR<br> **Severe crises**:<br> At least 30% of the population in IPC 3+ AND 5% in IPC4+ | Physical Surge Support + <br>Flash Appeal + <br>CERF request | 31                                      | 12.8%                                | 3.9                   |
-    """
-    )
+    mo.md(r"""The table below summarizes some initial proposed thresholds for four levels of alert based on incoming IPC reports. Each alert level is tied to a specific support package. Note that the "high" and "extreme" alert levels each have two potential trigger conditions, designed to capture both severe crises OR rapidly deteriorating conditions. The table below also summarizes some key statistics per alert level based on a historical analysis of IPC data (as shown in the charts below).""")
     return
 
 
 @app.cell
-def _(df_all_wide, iso3_to_country, np):
+def _(
+    df_all_wide,
+    h_d_p3,
+    h_s_p3,
+    h_s_p4,
+    iso3_to_country,
+    m_p3,
+    np,
+    vh_d_d3,
+    vh_d_d4,
+    vh_d_p3,
+    vh_s_p3,
+    vh_s_p4,
+):
     def assign_cat_row(row):
         P3 = row.get("proportion_3+", np.nan)
         P4 = row.get("proportion_4+", np.nan)
         D3 = row.get("pt_change_3+", np.nan)
         D4 = row.get("pt_change_4+", np.nan)
 
-        VH_S = (P3 >= 0.3 and P4 >= 0.05)
-        VH_D = (P3 >= 0.3 and D3 >= 5 and D4 >= 2)
-        H_S = (P3 >= 0.25 and P4 >= 0.03)
-        H_D = (P3 >= 0.25 and D3 >= 3)
-        M = (P3 >= 0.15)
+        VH_S = (P3 >= vh_s_p3.value and P4 >= vh_s_p4.value)
+        VH_D = (P3 >= vh_d_p3.value and D3 >= vh_d_d3.value and D4 >= vh_d_d4.value)
+        H_S = (P3 >= h_s_p3.value and P4 >= h_s_p4.value)
+        H_D = (P3 >= h_d_p3.value and D3 >= h_d_p3.value)
+        M = (P3 >= m_p3.value)
 
         if (VH_S and VH_D):
             return "extreme - both"
@@ -378,12 +338,82 @@ def _(df_all_wide, iso3_to_country, np):
     df_summary = df_all_wide.copy()
     df_summary["category"] = df_summary.apply(assign_cat_row, axis=1)
     df_summary["country"] = df_summary['location_code'].map(iso3_to_country)
+    df_summary["start_year"] = df_summary["From"].dt.year
 
     split_categories = df_summary['category'].str.split(' - ', expand=True)
 
     df_summary['cat_1'] = split_categories[0]
     df_summary['cat_2'] = split_categories[1] 
     return (df_summary,)
+
+
+@app.cell
+def _(df_summary, np):
+    summary_stats = {}
+    for cat in df_summary.cat_1.unique():
+        _df_summary_sel = df_summary[df_summary.cat_1 == cat]
+        summary_stats[cat] = {}
+        summary_stats[cat]["n_rep"] = len(_df_summary_sel)
+        summary_stats[cat]["p_rep"] = np.round((len(_df_summary_sel) / len(df_summary)) *100, 1)
+        reports_by_year = _df_summary_sel.groupby('start_year').size()
+        summary_stats[cat]["avg"] = np.round(reports_by_year.mean(),1)
+    return (summary_stats,)
+
+
+@app.cell
+def _():
+    # total = mo.stat(
+    #     value=len(df_summary_sel),
+    #     label="Number of IPC reports that meet criteria",
+    # )
+    # proportion = mo.stat(
+    #     value=(f"{np.round((len(df_summary_sel) / len(df_all_wide)) *100, 1)}%"),
+    #     label="Proportion of all IPC reports"
+    # )
+
+    # # Count reports per year
+    # reports_by_year = df_summary_sel.groupby('start_year').size()
+    # average_reports_per_year = np.round(reports_by_year.mean(),1)
+
+    # reports_per_year = mo.stat(
+    #     value=average_reports_per_year,
+    #     label="Average reports per year in criteria"
+    # )
+
+    # # Country with most reports
+    # reports_by_country = df_summary_sel.groupby('country').size()
+    # max_reports = reports_by_country.idxmax()
+
+    # mo.hstack([total, proportion, reports_per_year], justify="center")
+    return
+
+
+@app.cell
+def _(
+    h_d_d3,
+    h_d_p3,
+    h_s_p3,
+    h_s_p4,
+    m_p3,
+    mo,
+    summary_stats,
+    vh_d_d3,
+    vh_d_d4,
+    vh_d_p3,
+    vh_s_p3,
+    vh_s_p4,
+):
+    mo.md(
+        f"""
+    | **Category**    | **Description**                                                                                                                                                                                                                                                                                                                    | **Support Package**                                             | **Num. Reports that <br>meet criteria**    | **Percentage of all<br>IPC reports**    | **Average<br>annual**             |
+    | :-------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------                                                                                      | :-------------------------------------------------------------- | :----------------------------------------- | :-------------------------------------- | -:----------------------          |
+    | Low             | All other reports                                                                                                                                                                                                                                                                                                                  | No Support                                                      | {summary_stats["low"]["n_rep"]}            | {summary_stats["low"]["p_rep"]}         | {summary_stats["low"]["avg"]}     |
+    | Medium          | Between {m_p3.value*100}% and {h_s_p3.value*100}% of the population in IPC 3+                                                                                                                                                                                                                                                      | Remote Support + <br>Flash Appeal                               | {summary_stats["medium"]["n_rep"]}         | {summary_stats["medium"]["p_rep"]}      | {summary_stats["medium"]["avg"]}  |
+    | High            | **Deteriorating crises**:<br> At least {h_d_p3.value*100}% of the population in IPC 3+ AND at least a {h_d_d3.value*100}% increase in IPC 3+<br>  OR<br> **Severe crises**:<br> At least {h_s_p3.value*100}% of the total population in IPC 3+ AND {h_s_p4.value*100}% of total in IPC4+                                           | Physical Surge Support + <br>Flash Appeal                       | {summary_stats["high"]["n_rep"]}           | {summary_stats["high"]["p_rep"]}        | {summary_stats["high"]["avg"]}    |
+    | Extreme         | **Deteriorating crises**:<br> At least {vh_d_p3.value*100}% of the population in IPC 3+ AND at least a {vh_d_d3.value*100}% increase in IPC 3+ AND at least {vh_d_d4.value*100}% increase in IPC 4+<br>  OR<br> **Severe crises**:<br> At least {vh_s_p3.value*100}% of the population in IPC 3+ AND {vh_s_p4.value*100}% in IPC4+ | Physical Surge Support + <br>Flash Appeal + <br>CERF request    | {summary_stats["extreme"]["n_rep"]}        | {summary_stats["extreme"]["p_rep"]}     | {summary_stats["extreme"]["avg"]} |
+    """
+    )
+    return
 
 
 @app.cell
@@ -466,34 +496,6 @@ def _(category_radio, df_summary):
     df_summary_sel = df_summary[df_summary.category.str.contains(category_radio.value)].copy()
     df_summary_sel["start_year"] = df_summary_sel["From"].dt.year
     return (df_summary_sel,)
-
-
-@app.cell
-def _(df_all_wide, df_summary_sel, mo, np):
-    total = mo.stat(
-        value=len(df_summary_sel),
-        label="Number of IPC reports that meet criteria",
-    )
-    proportion = mo.stat(
-        value=(f"{np.round((len(df_summary_sel) / len(df_all_wide)) *100, 1)}%"),
-        label="Proportion of all IPC reports"
-    )
-
-    # Count reports per year
-    reports_by_year = df_summary_sel.groupby('start_year').size()
-    average_reports_per_year = np.round(reports_by_year.mean(),1)
-
-    reports_per_year = mo.stat(
-        value=average_reports_per_year,
-        label="Average reports per year in criteria"
-    )
-
-    # Country with most reports
-    reports_by_country = df_summary_sel.groupby('country').size()
-    max_reports = reports_by_country.idxmax()
-
-    # mo.hstack([total, proportion, reports_per_year], justify="center")
-    return
 
 
 @app.cell
@@ -1043,6 +1045,76 @@ def _(
     _fig.update_yaxes(visible=False, range=[0.65, 1.05], row=2, col=1)
 
     _fig
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ## 3. Adjust threshold values
+
+    Use the inputs below to
+    """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    # VERY HIGH THRESHOLD
+    vh_s_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.3, label="Prop. 3+")
+    vh_s_p4 = mo.ui.number(start=0, stop=1, step=0.01, value=0.05, label="Prop. 4+")
+    vh_d_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.3, label="Prop. 3+")
+    vh_d_d3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.05, label="Incr. 3+")
+    vh_d_d4 = mo.ui.number(start=0, stop=1, step=0.01, value=0.02, label="Incr. 4+")
+
+
+    mo.accordion({
+        "**VERY HIGH**": mo.hstack([
+        vh_s_p3, vh_s_p4, 
+        mo.md("**OR**"), 
+        vh_d_p3, vh_d_d3, vh_d_d4
+    ], justify='start')
+    })
+    return vh_d_d3, vh_d_d4, vh_d_p3, vh_s_p3, vh_s_p4
+
+
+@app.cell
+def _(mo):
+    # HIGH THRESHOLD
+    h_s_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.25, label="Prop. 3+")
+    h_s_p4 = mo.ui.number(start=0, stop=1, step=0.01, value=0.03, label="Prop. 4+")
+
+    h_d_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.25, label="Prop. 3+")
+    h_d_d3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.03, label="Incr. 3+")
+
+    mo.accordion({
+        "**HIGH**": mo.hstack([
+        h_s_p3, h_s_p4,
+        mo.md("**OR**"), 
+        h_d_p3, h_d_d3
+    ], justify='start')
+    })
+    return h_d_d3, h_d_p3, h_s_p3, h_s_p4
+
+
+@app.cell
+def _(mo):
+    # MED THRESHOLD
+    m_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.15, label="Prop. 3+")
+
+    mo.accordion({
+        "**MEDIUM**": m_p3
+    })
+    return (m_p3,)
+
+
+@app.cell
+def _(mo):
+    mo.accordion({
+        "**LOW**": "All other reports"
+    })
     return
 
 
