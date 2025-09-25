@@ -78,6 +78,7 @@ def _():
     from dotenv import load_dotenv
     import numpy as np
     from plotly.subplots import make_subplots
+    import matplotlib.colors as mcolors
 
     load_dotenv()
 
@@ -106,6 +107,7 @@ def _():
         iso3_to_country,
         iso3s,
         make_subplots,
+        mcolors,
         np,
         os,
         pd,
@@ -122,7 +124,7 @@ def _(os, pd, requests):
             "https://hapi.humdata.org/api/v2/food-security-nutrition-poverty/food-security"
         )
         params = {
-            "app_identifier": os.getenv("HDX_APP_IDENTIFIER"),
+            "app_identifier": os.getenv("HAPI_APP_IDENTIFIER"),
             "admin_level": 0,
             "output_format": "json",
             "limit": 10000,
@@ -501,7 +503,6 @@ def _(category_radio, df_summary):
 @app.cell
 def _(iso3s, pd, stratus):
     # Clean surge data
-    # df_ = pd.read_csv("examples/data/rosea_surge_20202024.csv")
     df_ = stratus.load_csv_from_blob("ds-rosea-thresholds/rosea_surge_20202024.csv")
     df_clean = df_.copy()
     df_clean['start_date'] = pd.to_datetime(df_clean['Date of departure'], format='mixed', dayfirst=True)
@@ -515,7 +516,6 @@ def _(iso3s, pd, stratus):
     df_surge = df_clean[['country', "surge_type", "start_date", "end_date", "location_code"]]
 
     # Clean flash appeal data
-    # df_fa = pd.read_csv("examples/data/flash_appeals.csv")
     df_fa = stratus.load_csv_from_blob("ds-rosea-thresholds/flash_appeals.csv")
     df_fa['date'] = pd.to_datetime(df_fa[" Original PDF Publication Date "], dayfirst=True)
     df_fa.rename(columns={"Country Name": "country", " Final Requirements": "requirements"}, inplace=True)
@@ -523,7 +523,6 @@ def _(iso3s, pd, stratus):
     df_fa = df_fa[['country', "date", "requirements", "location_code"]]
 
     # Clean the cerf data
-    # df_cerf = pd.read_csv("examples/data/cerf.csv")
     df_cerf = stratus.load_csv_from_blob("ds-rosea-thresholds/cerf.csv")
     df_cerf["regionName_l"] = df_cerf["regionName"].astype(str).str.strip().str.casefold()
     df_cerf["emergencyTypeName_l"] = df_cerf["emergencyTypeName"].astype(str).str.strip().str.casefold()
