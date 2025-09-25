@@ -74,7 +74,6 @@ def _():
     from dotenv import load_dotenv
     import numpy as np
     from plotly.subplots import make_subplots
-    import matplotlib.colors as mcolors
 
     load_dotenv()
 
