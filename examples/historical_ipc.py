@@ -150,6 +150,7 @@ def _(os, pd, requests):
                 "ipc_phase",
                 "ipc_type",
                 "population_fraction_in_phase",
+                "population_in_phase",
                 "From",
                 "To",
                 "year",
@@ -163,7 +164,7 @@ def _(os, pd, requests):
         df["ipc_phase"] = df["ipc_phase"].map(mapping).fillna(df["ipc_phase"])
         dff = df[df.ipc_phase == "4+"]
         dff = (
-            dff.groupby(["From", "To", "location_code", "ipc_type", "year", "ipc_phase"])
+            dff.groupby(["From", "To", "location_code", "ipc_type", "year", "ipc_phase", "population_analyzed"])
             .agg({"population_fraction_in_phase": "sum"})
             .reset_index()
         )
@@ -184,13 +185,23 @@ def _(mo):
 
 
 @app.cell
-def _(combine_4_plus, get_ipc_from_hapi, iso3s, pd):
+def _(get_ipc_from_hapi, iso3s):
     # Get all IPC data
     df_all = get_ipc_from_hapi()
 
     # Filter to only locations that we care about
     df_all = df_all[df_all.location_code.isin(list(iso3s.values()))]
 
+    # Transform to get the population analyzed 
+    # In theory could also do this by calc population_in_phase * population_fraction_in_phase
+    pop_all = df_all[df_all['ipc_phase'] == 'all'].set_index(['location_code', 'ipc_type', 'From', 'To'])['population_in_phase']
+    df_all['population_analyzed'] = df_all.set_index(['location_code', 'ipc_type', 'From', 'To']).index.map(pop_all).values
+    df_all = df_all.drop(columns="population_in_phase")
+    return (df_all,)
+
+
+@app.cell
+def _(combine_4_plus, df_all, pd):
     # Filter to just 3+ and 4+
     df_all_ = combine_4_plus(df_all)
     df_all_ = df_all_[df_all_.ipc_phase.isin(["3+", "4+"])]
@@ -203,18 +214,30 @@ def _(combine_4_plus, get_ipc_from_hapi, iso3s, pd):
     df_all_long = df_all_long.sort_values(["location_code", "From"], ascending=True)
 
     # Convert the data to wide format
-    df_all_wide = df_all_long.pivot(index=[col for col in df_all_long.columns if col not in ['ipc_phase', 'population_fraction_in_phase']], 
-                       columns='ipc_phase', 
-                       values='population_fraction_in_phase').reset_index()
+    index_cols = ['location_code', 'ipc_type', 'population_analyzed', 'From', 'To', 'year', 'priority']
+    df_all_wide = df_all_long.pivot(
+            index=index_cols, 
+           columns='ipc_phase', 
+           values='population_fraction_in_phase').reset_index()
     df_all_wide = df_all_wide.sort_values(['location_code', 'From'])
 
     # Check that it's half the length, because we made the 3+ and 4+
     # categories wide
     assert(len(df_all_wide) == (len(df_all_long) / 2))
 
-    # Calculate percentage point change by location
+    # Calculate if populations are comparable (within 10%)
+    POP_THRESH = 0.1
+    df_all_wide['pop_comparable'] = (
+        abs(df_all_wide.groupby('location_code')['population_analyzed'].diff()) / 
+        df_all_wide.groupby('location_code')['population_analyzed'].shift() <= POP_THRESH
+    )
+
+    # Calculate percentage point change only when comparable
     df_all_wide['pt_change_3+'] = df_all_wide.groupby('location_code')['3+'].diff() * 100
     df_all_wide['pt_change_4+'] = df_all_wide.groupby('location_code')['4+'].diff() * 100
+
+    # Set to NaN where populations aren't comparable
+    df_all_wide.loc[~df_all_wide['pop_comparable'], ['pt_change_3+', 'pt_change_4+']] = None
 
     # Convert back to a long format for visualization
     df_all_wide.rename(columns={
@@ -225,7 +248,7 @@ def _(combine_4_plus, get_ipc_from_hapi, iso3s, pd):
     df_all_long = pd.wide_to_long(
         df_all_wide,
         stubnames=['proportion_', 'pt_change_'],
-        i=['location_code', 'ipc_type', 'From', 'To', 'year', 'priority'],
+        i=['location_code', 'ipc_type', 'From', 'To', 'year', 'priority', 'population_analyzed'],
         j='phase',
         sep='',
         suffix=r'\d\+'
@@ -722,11 +745,12 @@ def _(
                              'Start: %{x}<br>' +
                              'Status: %{customdata[4]}<br>' +
                              'Proportion 3+/4+: %{customdata[0]:.0%}/%{customdata[1]:.0%}<br>' +
-                             'Point change 3+/4+: %{customdata[2]:.0f}/%{customdata[3]:.0f}'
+                             'Point change 3+/4+: %{customdata[2]:.0f}/%{customdata[3]:.0f}<br>' +
+                             'Population analyzed: %{customdata[5]:,.0f}'
                              '<extra></extra>',
                 text=[_row['country']],
                 customdata=[[_row['proportion_3+'], _row['proportion_4+'], 
-                            _row['pt_change_3+'], _row['pt_change_4+'], _row['category']]]
+                            _row['pt_change_3+'], _row['pt_change_4+'], _row['category'], _row["population_analyzed"]]]
             ))
 
         # Add shape legend items only for shapes that appear in the data
@@ -906,7 +930,6 @@ def _(
                 fill='tozeroy',
                 fillcolor=f"rgba{(*mcolors.hex2color(base_color), opacity)}",
                 y=[row[f"{value_radio.value}_{val}"]] * len(dates),
-                # line=dict(width=0),
                 line=dict(color=level_colors[row['cat_1']]),
                 showlegend=show_legend and val=="3+",
                 name=row['cat_1'],
@@ -914,12 +937,13 @@ def _(
                 legendgrouptitle_text="IPC Threshold",
                 customdata=[[row['proportion_3+'], row['pt_change_3+'], 
                             row['proportion_4+'], row['pt_change_4+'], 
-                            row['category'], row['From'], row['To']]] * len(dates),
+                            row['category'], row['From'], row['To'], row['population_analyzed']]] * len(dates),
                 hovertemplate=(
                     "Report Period: %{customdata[5]|%b %d} - %{customdata[6]|%b %d}<br>"
                     'Status: %{customdata[4]}<br>' +
                     'Proportion 3+/4+: %{customdata[0]:.0%}/%{customdata[2]:.0%}<br>' +
-                    'Point change 3+/4+: %{customdata[1]:.0f}/%{customdata[3]:.0f}'
+                    'Point change 3+/4+: %{customdata[1]:.0f}/%{customdata[3]:.0f}<br>' +
+                    'Population analyzed: %{customdata[7]:,.0f}'
                     "<extra></extra>"
                 )
             ), col=1, row=1)
