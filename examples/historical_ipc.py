@@ -1,11 +1,7 @@
 import marimo
 
-__generated_with = "0.16.2"
-app = marimo.App(
-    width="medium",
-    app_title="ROSEA IPC Thresholds",
-    css_file="assets/custom.css",
-)
+__generated_with = "0.15.2"
+app = marimo.App(width="medium", app_title="ROSEA IPC Thresholds")
 
 
 @app.cell
@@ -305,9 +301,79 @@ def _(df_all_wide, mo):
     return
 
 
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ## 2. Adjust threshold values
+
+    Use the inputs below to change the threshold levels for each alert category. The table and plots above will be updated accordingly.
+    """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    # VERY HIGH THRESHOLD
+    vh_s_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.3, label="Prop. 3+")
+    vh_s_p4 = mo.ui.number(start=0, stop=1, step=0.01, value=0.05, label="Prop. 4+")
+    vh_d_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.3, label="Prop. 3+")
+    vh_d_d3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.05, label="Incr. 3+")
+    vh_d_d4 = mo.ui.number(start=0, stop=1, step=0.01, value=0.02, label="Incr. 4+")
+
+
+    mo.accordion({
+        "**VERY HIGH**": mo.hstack([
+        vh_s_p3, vh_s_p4, 
+        mo.md("**OR**"), 
+        vh_d_p3, vh_d_d3, vh_d_d4
+    ], justify='start')
+    })
+    return vh_d_d3, vh_d_d4, vh_d_p3, vh_s_p3, vh_s_p4
+
+
+@app.cell
+def _(mo):
+    # HIGH THRESHOLD
+    h_s_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.25, label="Prop. 3+")
+    h_s_p4 = mo.ui.number(start=0, stop=1, step=0.01, value=0.03, label="Prop. 4+")
+
+    h_d_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.25, label="Prop. 3+")
+    h_d_d3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.03, label="Incr. 3+")
+
+    mo.accordion({
+        "**HIGH**": mo.hstack([
+        h_s_p3, h_s_p4,
+        mo.md("**OR**"), 
+        h_d_p3, h_d_d3
+    ], justify='start')
+    })
+    return h_d_d3, h_d_p3, h_s_p3, h_s_p4
+
+
+@app.cell
+def _(mo):
+    # MED THRESHOLD
+    m_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.15, label="Prop. 3+")
+
+    mo.accordion({
+        "**MEDIUM**": m_p3
+    })
+    return (m_p3,)
+
+
+@app.cell
+def _(mo):
+    mo.accordion({
+        "**LOW**": "All other reports"
+    })
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## 2. Validate thresholds""")
+    mo.md(r"""## 3. Validate thresholds""")
     return
 
 
@@ -1066,76 +1132,6 @@ def _(
     _fig.update_yaxes(visible=False, range=[0.65, 1.05], row=2, col=1)
 
     _fig
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md(
-        r"""
-    ## 3. Adjust threshold values
-
-    Use the inputs below to change the threshold levels for each alert category. The table and plots above will be updated accordingly.
-    """
-    )
-    return
-
-
-@app.cell
-def _(mo):
-    # VERY HIGH THRESHOLD
-    vh_s_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.3, label="Prop. 3+")
-    vh_s_p4 = mo.ui.number(start=0, stop=1, step=0.01, value=0.05, label="Prop. 4+")
-    vh_d_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.3, label="Prop. 3+")
-    vh_d_d3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.05, label="Incr. 3+")
-    vh_d_d4 = mo.ui.number(start=0, stop=1, step=0.01, value=0.02, label="Incr. 4+")
-
-
-    mo.accordion({
-        "**VERY HIGH**": mo.hstack([
-        vh_s_p3, vh_s_p4, 
-        mo.md("**OR**"), 
-        vh_d_p3, vh_d_d3, vh_d_d4
-    ], justify='start')
-    })
-    return vh_d_d3, vh_d_d4, vh_d_p3, vh_s_p3, vh_s_p4
-
-
-@app.cell
-def _(mo):
-    # HIGH THRESHOLD
-    h_s_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.25, label="Prop. 3+")
-    h_s_p4 = mo.ui.number(start=0, stop=1, step=0.01, value=0.03, label="Prop. 4+")
-
-    h_d_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.25, label="Prop. 3+")
-    h_d_d3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.03, label="Incr. 3+")
-
-    mo.accordion({
-        "**HIGH**": mo.hstack([
-        h_s_p3, h_s_p4,
-        mo.md("**OR**"), 
-        h_d_p3, h_d_d3
-    ], justify='start')
-    })
-    return h_d_d3, h_d_p3, h_s_p3, h_s_p4
-
-
-@app.cell
-def _(mo):
-    # MED THRESHOLD
-    m_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.15, label="Prop. 3+")
-
-    mo.accordion({
-        "**MEDIUM**": m_p3
-    })
-    return (m_p3,)
-
-
-@app.cell
-def _(mo):
-    mo.accordion({
-        "**LOW**": "All other reports"
-    })
     return
 
 
