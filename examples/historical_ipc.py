@@ -925,12 +925,6 @@ def _(df_levels_sel, iso3_dropdown, mo):
 
 
 @app.cell
-def _(df_summary):
-    df_summary
-    return
-
-
-@app.cell
 def _(
     cerf_color,
     df_cerf_sel,
