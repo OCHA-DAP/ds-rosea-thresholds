@@ -265,12 +265,6 @@ def _(combine_4_plus, df_all, pd):
 
 
 @app.cell
-def _(df_all_long):
-    df_all_long
-    return
-
-
-@app.cell
 def _(mo):
     box_display = mo.ui.switch(value=True, label="Disaggregate box plot by country")
     return (box_display,)
