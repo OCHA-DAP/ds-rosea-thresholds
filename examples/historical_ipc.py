@@ -161,7 +161,7 @@ def _(os, pd, requests):
         dff = df[df.ipc_phase == "4+"]
         dff = (
             dff.groupby(["From", "To", "location_code", "ipc_type", "year", "ipc_phase", "population_analyzed"])
-            .agg({"population_fraction_in_phase": "sum"})
+            .agg({"population_fraction_in_phase": "sum", "population_in_phase": "sum"})
             .reset_index()
         )
         return pd.concat([df_all, dff])
@@ -192,7 +192,7 @@ def _(get_ipc_from_hapi, iso3s):
     # In theory could also do this by calc population_in_phase * population_fraction_in_phase
     pop_all = df_all[df_all['ipc_phase'] == 'all'].set_index(['location_code', 'ipc_type', 'From', 'To'])['population_in_phase']
     df_all['population_analyzed'] = df_all.set_index(['location_code', 'ipc_type', 'From', 'To']).index.map(pop_all).values
-    df_all = df_all.drop(columns="population_in_phase")
+    # df_all = df_all.drop(columns="population_in_phase")
     return (df_all,)
 
 
@@ -211,10 +211,11 @@ def _(combine_4_plus, df_all, pd):
 
     # Convert the data to wide format
     index_cols = ['location_code', 'ipc_type', 'population_analyzed', 'From', 'To', 'year', 'priority']
+    value_cols = ['population_fraction_in_phase', 'population_in_phase']
     df_all_wide = df_all_long.pivot(
             index=index_cols, 
            columns='ipc_phase', 
-           values='population_fraction_in_phase').reset_index()
+           values=value_cols).reset_index()
     df_all_wide = df_all_wide.sort_values(['location_code', 'From'])
 
     # Check that it's half the length, because we made the 3+ and 4+
@@ -228,23 +229,27 @@ def _(combine_4_plus, df_all, pd):
         df_all_wide.groupby('location_code')['population_analyzed'].shift() <= POP_THRESH
     )
 
+    df_all_wide.columns = ['_'.join(col).strip('_') for col in df_all_wide.columns]
+
     # Calculate percentage point change only when comparable
-    df_all_wide['pt_change_3+'] = df_all_wide.groupby('location_code')['3+'].diff() * 100
-    df_all_wide['pt_change_4+'] = df_all_wide.groupby('location_code')['4+'].diff() * 100
+    df_all_wide['pt_change_3+'] = df_all_wide.groupby('location_code')['population_fraction_in_phase_3+'].diff() * 100
+    df_all_wide['pt_change_4+'] = df_all_wide.groupby('location_code')['population_fraction_in_phase_4+'].diff() * 100
 
     # Set to NaN where populations aren't comparable
     df_all_wide.loc[~df_all_wide['pop_comparable'], ['pt_change_3+', 'pt_change_4+']] = None
 
     # Convert back to a long format for visualization
     df_all_wide.rename(columns={
-        "3+": "proportion_3+",
-        "4+": "proportion_4+"
+        "population_fraction_in_phase_3+": "proportion_3+",
+        "population_fraction_in_phase_4+": "proportion_4+",
+        "population_in_phase_3+": "population_3+",
+        "population_in_phase_4+": "population_4+"
     }, inplace=True)
 
     df_all_long = pd.wide_to_long(
         df_all_wide,
-        stubnames=['proportion_', 'pt_change_'],
-        i=['location_code', 'ipc_type', 'From', 'To', 'year', 'priority', 'population_analyzed'],
+        stubnames=['proportion_', 'pt_change_', 'population_'],
+        i=index_cols,
         j='phase',
         sep='',
         suffix=r'\d\+'
@@ -252,19 +257,16 @@ def _(combine_4_plus, df_all, pd):
     df_all_long = df_all_long.rename(
         columns={
             "proportion_": "proportion",
-            "pt_change_": "pt_change"
+            "pt_change_": "pt_change",
+            "population_": "population"
         }
     )
     return df_all_long, df_all_wide
 
 
 @app.cell
-def _():
-    # ---- TODO
-    # df_all_sel = df_all[df_all.ipc_phase == 'all']
-    # df_all_sel['percentage_of_max'] = df_all_sel.groupby('location_code')['population_in_phase'].transform(lambda x: x / x.max() * 100)
-    # df_all_sel[['location_name', 'percentage_of_max']]
-    # df_all_sel.groupby('location_code')['population_in_phase'].max()
+def _(df_all_long):
+    df_all_long
     return
 
 
@@ -450,34 +452,6 @@ def _(df_summary, np):
         reports_by_year = _df_summary_sel.groupby('start_year').size()
         summary_stats[cat]["avg"] = np.round(reports_by_year.mean(),1)
     return (summary_stats,)
-
-
-@app.cell
-def _():
-    # total = mo.stat(
-    #     value=len(df_summary_sel),
-    #     label="Number of IPC reports that meet criteria",
-    # )
-    # proportion = mo.stat(
-    #     value=(f"{np.round((len(df_summary_sel) / len(df_all_wide)) *100, 1)}%"),
-    #     label="Proportion of all IPC reports"
-    # )
-
-    # # Count reports per year
-    # reports_by_year = df_summary_sel.groupby('start_year').size()
-    # average_reports_per_year = np.round(reports_by_year.mean(),1)
-
-    # reports_per_year = mo.stat(
-    #     value=average_reports_per_year,
-    #     label="Average reports per year in criteria"
-    # )
-
-    # # Country with most reports
-    # reports_by_country = df_summary_sel.groupby('country').size()
-    # max_reports = reports_by_country.idxmax()
-
-    # mo.hstack([total, proportion, reports_per_year], justify="center")
-    return
 
 
 @app.cell
@@ -921,7 +895,7 @@ def _(iso3s, mo):
         value="Angola"
     )
     value_radio = mo.ui.radio(
-        options=["proportion", "pt_change"], 
+        options=["proportion", "pt_change", "population"], 
         label="Choose value to display:", 
         value="proportion", 
         inline=True
@@ -951,6 +925,12 @@ def _(df_levels_sel, iso3_dropdown, mo):
 
 
 @app.cell
+def _(df_summary):
+    df_summary
+    return
+
+
+@app.cell
 def _(
     cerf_color,
     df_cerf_sel,
@@ -967,8 +947,15 @@ def _(
     surge_formatting,
     value_radio,
 ):
-    y_axis_range = [-25, 25] if value_radio.value == "pt_change" else [0,0.65]
-    y_axis_title = "Percent point change<br>(3+ / 4+)" if value_radio.value == "pt_change" else "Proportion of population<br>(3+ / 4+)"
+    if value_radio.value == "proportion":
+        y_axis_range = [0, 0.65]
+        y_axis_title = "Proportion of population<br>(3+ / 4+)"
+    elif value_radio.value == "population":
+        y_axis_range = [0, 6000000]
+        y_axis_title  = "Population<br>(3+ / 4+)"
+    elif value_radio.value == "pt_change":
+        y_axis_range = [-25, 25]
+        y_axis_title = "Percent point change<br>(3+ / 4+)"
 
     # -----------------------------------------
     # Create plot
@@ -1004,13 +991,16 @@ def _(
                 legendgrouptitle_text="IPC Threshold",
                 customdata=[[row['proportion_3+'], row['pt_change_3+'], 
                             row['proportion_4+'], row['pt_change_4+'], 
-                            row['category'], row['From'], row['To'], row['population_analyzed']]] * len(dates),
+                            row['category'], row['From'], row['To'], 
+                            row['population_3+'], row['population_4+'],
+                             row['population_analyzed']]] * len(dates),
                 hovertemplate=(
                     "Report Period: %{customdata[5]|%b %d} - %{customdata[6]|%b %d}<br>"
                     'Status: %{customdata[4]}<br>' +
                     'Proportion 3+/4+: %{customdata[0]:.0%}/%{customdata[2]:.0%}<br>' +
+                    'Population 3+/4+: %{customdata[7]:,.0f}/%{customdata[8]:,.0f}<br>' +
                     'Point change 3+/4+: %{customdata[1]:.0f}/%{customdata[3]:.0f}<br>' +
-                    'Population analyzed: %{customdata[7]:,.0f}'
+                    'Population analyzed: %{customdata[9]:,.0f}'
                     "<extra></extra>"
                 )
             ), col=1, row=1)
@@ -1143,7 +1133,7 @@ def _(mo):
 
 @app.cell
 def _(df_summary):
-    df_summary[['country', 'From', 'To', 'category', 'ipc_type', 'population_analyzed', 'proportion_3+', 'proportion_4+', 'pt_change_3+', 'pt_change_4+']]
+    df_summary[['country', 'From', 'To', 'category', 'ipc_type', 'population_analyzed', 'proportion_3+', 'proportion_4+', 'population_3+', 'population_4+', 'pt_change_3+', 'pt_change_4+']]
     return
 
 
