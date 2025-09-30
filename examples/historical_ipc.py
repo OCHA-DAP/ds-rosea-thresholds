@@ -386,7 +386,7 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(r"""The table below summarizes some initial proposed thresholds for four levels of alert based on incoming IPC reports. Each alert level is tied to a specific support package. Note that the "high" and "extreme" alert levels each have two potential trigger conditions, designed to capture both severe crises OR rapidly deteriorating conditions. **Note** that we do not evaluate for deteriorating conditions across reports where the population analyzed is significantly different (>10%).  The table below also summarizes some key statistics per alert level based on a historical analysis of IPC data (as shown in the charts below).""")
+    mo.md(r"""The table below summarizes some initial proposed thresholds for four levels of alert based on incoming IPC reports. Each alert level is tied to a specific support package. Note that the "high" and "very high" alert levels each have two potential trigger conditions, designed to capture both severe crises OR rapidly deteriorating conditions. **Note** that we do not evaluate for deteriorating conditions across reports where the population analyzed is significantly different (>10%).  The table below also summarizes some key statistics per alert level based on a historical analysis of IPC data (as shown in the charts below).""")
     return
 
 
@@ -421,11 +421,11 @@ def _(
         M = (P3 >= m_p3.value)
 
         if (VH_S and VH_D):
-            return "extreme - both"
+            return "very high - both"
         elif VH_S: 
-            return "extreme - severe"
+            return "very high - severe"
         elif VH_D:
-            return "extreme - deteriorating"
+            return "very high - deteriorating"
         elif (H_S and H_D):
             return "high - both"
         elif H_S:
@@ -484,7 +484,7 @@ def _(
     | Low             | All other reports                                                                                                                                                                                                                                                                                                                  | No Support                                                      | {summary_stats["low"]["n_rep"]}            | {summary_stats["low"]["p_rep"]}         | {summary_stats["low"]["avg"]}     |
     | Medium          | Between {m_p3.value * 100}% and {h_s_p3.value * 100}% of the population in IPC 3+                                                                                                                                                                                                                                                      | Remote Support + <br>Flash Appeal                               | {summary_stats["medium"]["n_rep"]}         | {summary_stats["medium"]["p_rep"]}      | {summary_stats["medium"]["avg"]}  |
     | High            | **Deteriorating crises**:<br> At least {h_d_p3.value * 100}% of the population in IPC 3+ AND at least a {h_d_d3.value * 100}% increase in IPC 3+<br>  OR<br> **Severe crises**:<br> At least {h_s_p3.value * 100}% of the total population in IPC 3+ AND {h_s_p4.value * 100}% of total in IPC4+                                           | Physical Surge Support + <br>Flash Appeal                       | {summary_stats["high"]["n_rep"]}           | {summary_stats["high"]["p_rep"]}        | {summary_stats["high"]["avg"]}    |
-    | Extreme         | **Deteriorating crises**:<br> At least {vh_d_p3.value * 100}% of the population in IPC 3+ AND at least a {vh_d_d3.value * 100}% increase in IPC 3+ AND at least {vh_d_d4.value * 100}% increase in IPC 4+<br>  OR<br> **Severe crises**:<br> At least {vh_s_p3.value * 100}% of the population in IPC 3+ AND ({vh_s_p4.value * 100}% in IPC4+ OR {vh_s_pp4.value:,} people in IPC4+)| Physical Surge Support + <br>Flash Appeal + <br>CERF request    | {summary_stats["extreme"]["n_rep"]}        | {summary_stats["extreme"]["p_rep"]}     | {summary_stats["extreme"]["avg"]} |
+    | Very high         | **Deteriorating crises**:<br> At least {vh_d_p3.value * 100}% of the population in IPC 3+ AND at least a {vh_d_d3.value * 100}% increase in IPC 3+ AND at least {vh_d_d4.value * 100}% increase in IPC 4+<br>  OR<br> **Severe crises**:<br> At least {vh_s_p3.value * 100}% of the population in IPC 3+ AND ({vh_s_p4.value * 100}% in IPC4+ OR {vh_s_pp4.value:,} people in IPC4+)| Physical Surge Support + <br>Flash Appeal + <br>CERF request    | {summary_stats["very high"]["n_rep"]}        | {summary_stats["very high"]["p_rep"]}     | {summary_stats["very high"]["avg"]} |
     """
     )
     return
@@ -554,9 +554,9 @@ def _(mo):
 @app.cell
 def _(mo):
     category_radio = mo.ui.radio(
-        options=["extreme", "high", "medium", "low"], 
+        options=["very high", "high", "medium", "low"], 
         label="Select category to investigate:", 
-        value="extreme", 
+        value="very high", 
         inline=True
     )
 
@@ -567,7 +567,7 @@ def _(mo):
 
 @app.cell
 def _(category_radio, df_summary):
-    df_summary_sel = df_summary[df_summary.category.str.contains(category_radio.value)].copy()
+    df_summary_sel = df_summary[df_summary.cat_1 == category_radio.value].copy()
     df_summary_sel["start_year"] = df_summary_sel["From"].dt.year
     return (df_summary_sel,)
 
@@ -614,7 +614,7 @@ def _(iso3s, pd, stratus):
 def _():
     # Formatting information for plots
     level_colors = {
-        'extreme': '#e8857d',        # Muted red
+        'very high': '#e8857d',        # Muted red
         'high': '#d19970',           # Muted orange
         'medium': '#6b9ce8',         # Muted teal
         'low': '#b0b0b0',            # Muted grey
