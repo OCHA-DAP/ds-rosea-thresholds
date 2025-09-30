@@ -323,18 +323,19 @@ def _(mo):
     # VERY HIGH THRESHOLD
     vh_s_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.3, label="Prop. 3+")
     vh_s_p4 = mo.ui.number(start=0, stop=1, step=0.01, value=0.05, label="Prop. 4+")
-    vh_s_pp4 = mo.ui.number(start=0, stop=1000000, step=100000, value=500000, label="Pop. 4+")
+    vh_s_pp4 = mo.ui.number(start=0, stop=2000000, step=100000, value=1500000, label="Pop. 4+")
     vh_d_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.3, label="Prop. 3+")
     vh_d_d3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.05, label="Incr. 3+")
     vh_d_d4 = mo.ui.number(start=0, stop=1, step=0.01, value=0.02, label="Incr. 4+")
 
 
     mo.accordion({
-        "**VERY HIGH**": mo.hstack([
-        vh_s_p3, vh_s_p4, vh_s_pp4,
-        mo.md("**OR**"), 
-        vh_d_p3, vh_d_d3, vh_d_d4
-    ], justify='start')
+        "**VERY HIGH**": 
+        mo.vstack([
+            mo.hstack([mo.md("**Severe**:"), vh_s_p3," AND (" , vh_s_p4, "OR", vh_s_pp4, ")"], justify="start"),
+            mo.md("**OR**"), 
+            mo.hstack([mo.md("**Deteriorating**:"), vh_d_p3, " AND ", vh_d_d3,  " AND ", vh_d_d4], justify='start')
+        ])
     })
     return vh_d_d3, vh_d_d4, vh_d_p3, vh_s_p3, vh_s_p4, vh_s_pp4
 
@@ -349,11 +350,11 @@ def _(mo):
     h_d_d3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.03, label="Incr. 3+")
 
     mo.accordion({
-        "**HIGH**": mo.hstack([
-        h_s_p3, h_s_p4,
-        mo.md("**OR**"), 
-        h_d_p3, h_d_d3
-    ], justify='start')
+        "**HIGH**":     mo.vstack([
+            mo.hstack([mo.md("**Severe**:"), h_s_p3," AND " , h_s_p4], justify="start"),
+            mo.md("**OR**"), 
+            mo.hstack([mo.md("**Deteriorating**:"), h_d_p3, " AND ", h_d_d3,], justify='start')
+        ])
     })
     return h_d_d3, h_d_p3, h_s_p3, h_s_p4
 
@@ -413,7 +414,7 @@ def _(
         D3 = row.get("pt_change_3+", np.nan)
         D4 = row.get("pt_change_4+", np.nan)
 
-        VH_S = (P3 >= vh_s_p3.value and (P4 >= vh_s_p4.value or PP4 >= vh_s_pp4.value))
+        VH_S = (P3 >= vh_s_p3.value and ((P4 >= vh_s_p4.value) or (PP4 >= vh_s_pp4.value)))
         VH_D = (P3 >= vh_d_p3.value and D3 >= vh_d_d3.value*100 and D4 >= vh_d_d4.value*100)
         H_S = (P3 >= h_s_p3.value and P4 >= h_s_p4.value)
         H_D = (P3 >= h_d_p3.value and D3 >= h_d_d3.value*100)
@@ -474,15 +475,16 @@ def _(
     vh_d_p3,
     vh_s_p3,
     vh_s_p4,
+    vh_s_pp4,
 ):
     mo.md(
         f"""
     | **Category**    | **Description**                                                                                                                                                                                                                                                                                                                    | **Support Package**                                             | **Num. Reports that <br>meet criteria**    | **Percentage of all<br>IPC reports**    | **Average<br>annual**             |
     | :-------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------                                                                                      | :-------------------------------------------------------------- | :----------------------------------------- | :-------------------------------------- | -:----------------------          |
     | Low             | All other reports                                                                                                                                                                                                                                                                                                                  | No Support                                                      | {summary_stats["low"]["n_rep"]}            | {summary_stats["low"]["p_rep"]}         | {summary_stats["low"]["avg"]}     |
-    | Medium          | Between {m_p3.value*100}% and {h_s_p3.value*100}% of the population in IPC 3+                                                                                                                                                                                                                                                      | Remote Support + <br>Flash Appeal                               | {summary_stats["medium"]["n_rep"]}         | {summary_stats["medium"]["p_rep"]}      | {summary_stats["medium"]["avg"]}  |
-    | High            | **Deteriorating crises**:<br> At least {h_d_p3.value*100}% of the population in IPC 3+ AND at least a {h_d_d3.value*100}% increase in IPC 3+<br>  OR<br> **Severe crises**:<br> At least {h_s_p3.value*100}% of the total population in IPC 3+ AND {h_s_p4.value*100}% of total in IPC4+                                           | Physical Surge Support + <br>Flash Appeal                       | {summary_stats["high"]["n_rep"]}           | {summary_stats["high"]["p_rep"]}        | {summary_stats["high"]["avg"]}    |
-    | Extreme         | **Deteriorating crises**:<br> At least {vh_d_p3.value*100}% of the population in IPC 3+ AND at least a {vh_d_d3.value*100}% increase in IPC 3+ AND at least {vh_d_d4.value*100}% increase in IPC 4+<br>  OR<br> **Severe crises**:<br> At least {vh_s_p3.value*100}% of the population in IPC 3+ AND {vh_s_p4.value*100}% in IPC4+ | Physical Surge Support + <br>Flash Appeal + <br>CERF request    | {summary_stats["extreme"]["n_rep"]}        | {summary_stats["extreme"]["p_rep"]}     | {summary_stats["extreme"]["avg"]} |
+    | Medium          | Between {m_p3.value * 100}% and {h_s_p3.value * 100}% of the population in IPC 3+                                                                                                                                                                                                                                                      | Remote Support + <br>Flash Appeal                               | {summary_stats["medium"]["n_rep"]}         | {summary_stats["medium"]["p_rep"]}      | {summary_stats["medium"]["avg"]}  |
+    | High            | **Deteriorating crises**:<br> At least {h_d_p3.value * 100}% of the population in IPC 3+ AND at least a {h_d_d3.value * 100}% increase in IPC 3+<br>  OR<br> **Severe crises**:<br> At least {h_s_p3.value * 100}% of the total population in IPC 3+ AND {h_s_p4.value * 100}% of total in IPC4+                                           | Physical Surge Support + <br>Flash Appeal                       | {summary_stats["high"]["n_rep"]}           | {summary_stats["high"]["p_rep"]}        | {summary_stats["high"]["avg"]}    |
+    | Extreme         | **Deteriorating crises**:<br> At least {vh_d_p3.value * 100}% of the population in IPC 3+ AND at least a {vh_d_d3.value * 100}% increase in IPC 3+ AND at least {vh_d_d4.value * 100}% increase in IPC 4+<br>  OR<br> **Severe crises**:<br> At least {vh_s_p3.value * 100}% of the population in IPC 3+ AND ({vh_s_p4.value * 100}% in IPC4+ OR {vh_s_pp4.value:,} people in IPC4+)| Physical Surge Support + <br>Flash Appeal + <br>CERF request    | {summary_stats["extreme"]["n_rep"]}        | {summary_stats["extreme"]["p_rep"]}     | {summary_stats["extreme"]["avg"]} |
     """
     )
     return
