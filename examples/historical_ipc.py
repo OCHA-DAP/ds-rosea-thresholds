@@ -71,12 +71,12 @@ def _():
     import requests 
     import os
     import plotly.graph_objects as go
-    from dotenv import load_dotenv
+    from dotenv import load_dotenv, find_dotenv
     import numpy as np
     from plotly.subplots import make_subplots
     import matplotlib.colors as mcolors
 
-    load_dotenv()
+    load_dotenv(find_dotenv(usecwd=True))
 
     import ocha_stratus as stratus
 
@@ -246,6 +246,9 @@ def _(combine_4_plus, df_all, pd):
         "population_in_phase_4+": "population_4+"
     }, inplace=True)
 
+    for col in ["population_3+", "population_4+", "pt_change_3+", "pt_change_4+"]:
+        df_all_wide[col] = pd.to_numeric(df_all_wide[col], errors='coerce').round().astype('Int64')
+
     df_all_long = pd.wide_to_long(
         df_all_wide,
         stubnames=['proportion_', 'pt_change_', 'population_'],
@@ -261,31 +264,37 @@ def _(combine_4_plus, df_all, pd):
             "population_": "population"
         }
     )
+
+    df_all_wide['pt_change_3+'] = df_all_wide['pt_change_3+'].fillna(0)
+    df_all_wide['pt_change_4+'] = df_all_wide['pt_change_4+'].fillna(0)
     return df_all_long, df_all_wide
 
 
 @app.cell
 def _(mo):
     box_display = mo.ui.switch(value=True, label="Disaggregate box plot by country")
-    return (box_display,)
+    value_select = mo.ui.radio(value="proportion", options=["proportion", "population"], label="Value to display", inline=True)
+    return box_display, value_select
 
 
 @app.cell
-def _(box_display):
-    box_display
+def _(box_display, mo, value_select):
+    mo.hstack([box_display, value_select])
     return
 
 
 @app.cell
-def _(box_display, df_all_long, px):
+def _(box_display, df_all_long, px, value_select):
     # Display box plot
+    plot_axis_title = "% of population" if value_select.value == "proportion" else "Population"
+
     if box_display.value:
-        fig_box = px.box(df_all_long, x='location_code', y='proportion', facet_row="phase", template="simple_white", title="Distribution of population in phase by country", height=350)
-        fig_box.update_yaxes(title="% of population")
+        fig_box = px.box(df_all_long, x='location_code', y=value_select.value, facet_row="phase", template="simple_white", title="Distribution of population in phase by country", height=350)
+        fig_box.update_yaxes(title=plot_axis_title)
         fig_box.update_xaxes(title='Country')
     else:
-        fig_box = px.box(df_all_long, y='proportion', x='phase', template='simple_white', title="Distribution of population in phase", height=350)
-        fig_box.update_yaxes(title="% of population")
+        fig_box = px.box(df_all_long, y=value_select.value, x='phase', template='simple_white', title="Distribution of population in phase", height=350)
+        fig_box.update_yaxes(title=plot_axis_title)
         fig_box.update_xaxes(title='IPC Phase')
     fig_box.update_layout(margin=dict(l=0, r=0, t=40, b=0))
     return
@@ -314,6 +323,7 @@ def _(mo):
     # VERY HIGH THRESHOLD
     vh_s_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.3, label="Prop. 3+")
     vh_s_p4 = mo.ui.number(start=0, stop=1, step=0.01, value=0.05, label="Prop. 4+")
+    vh_s_pp4 = mo.ui.number(start=0, stop=1000000, step=100000, value=500000, label="Pop. 4+")
     vh_d_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.3, label="Prop. 3+")
     vh_d_d3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.05, label="Incr. 3+")
     vh_d_d4 = mo.ui.number(start=0, stop=1, step=0.01, value=0.02, label="Incr. 4+")
@@ -321,12 +331,12 @@ def _(mo):
 
     mo.accordion({
         "**VERY HIGH**": mo.hstack([
-        vh_s_p3, vh_s_p4, 
+        vh_s_p3, vh_s_p4, vh_s_pp4,
         mo.md("**OR**"), 
         vh_d_p3, vh_d_d3, vh_d_d4
     ], justify='start')
     })
-    return vh_d_d3, vh_d_d4, vh_d_p3, vh_s_p3, vh_s_p4
+    return vh_d_d3, vh_d_d4, vh_d_p3, vh_s_p3, vh_s_p4, vh_s_pp4
 
 
 @app.cell
@@ -394,14 +404,16 @@ def _(
     vh_d_p3,
     vh_s_p3,
     vh_s_p4,
+    vh_s_pp4,
 ):
     def assign_cat_row(row):
         P3 = row.get("proportion_3+", np.nan)
         P4 = row.get("proportion_4+", np.nan)
+        PP4 = row.get("population_4+", np.nan)
         D3 = row.get("pt_change_3+", np.nan)
         D4 = row.get("pt_change_4+", np.nan)
 
-        VH_S = (P3 >= vh_s_p3.value and P4 >= vh_s_p4.value)
+        VH_S = (P3 >= vh_s_p3.value and (P4 >= vh_s_p4.value or PP4 >= vh_s_pp4.value))
         VH_D = (P3 >= vh_d_p3.value and D3 >= vh_d_d3.value*100 and D4 >= vh_d_d4.value*100)
         H_S = (P3 >= h_s_p3.value and P4 >= h_s_p4.value)
         H_D = (P3 >= h_d_p3.value and D3 >= h_d_d3.value*100)
