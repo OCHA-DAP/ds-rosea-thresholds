@@ -405,7 +405,7 @@ def _(mo):
 @app.cell
 def _(mo):
     # MED THRESHOLD
-    m_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.15, label="Prop. 3+")
+    m_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.18, label="Prop. 3+")
     m_pp4 = mo.ui.number(start=0, stop=2000000, step=50000, value=50000, label="Pop. 4+")
 
     mo.accordion({
