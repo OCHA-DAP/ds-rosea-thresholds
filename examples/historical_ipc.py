@@ -154,6 +154,35 @@ def _(os, pd, requests):
         ]
 
 
+    def get_pop(iso3=None, adm_level=None):
+        endpoint = (
+            "https://hapi.humdata.org/api/v2/geography-infrastructure/baseline-population"
+        )
+        params = {
+            "app_identifier": os.getenv("HAPI_APP_IDENTIFIER"),
+            "admin_level": adm_level,
+            "output_format": "json",
+            "limit": 10000,
+            "offset": 0,
+            "gender": "all",
+        }
+        if iso3:
+            params["location_code"] = iso3
+        # Check if the request was successful
+        response = requests.get(endpoint, params=params)
+        json_data = response.json()
+        # Extract the data list from the JSON
+        data_list = json_data.get("data", [])
+        df_response = pd.DataFrame(data_list)
+
+        if df_response.empty:
+            raise Exception(f"No data available for {iso3}")
+
+        df_response = df_response[df_response.age_range == "all"]
+
+        return df_response
+
+
     def combine_4_plus(df_all):
         df = df_all.copy()
         mapping = {"4": "4+", "5": "4+"}
@@ -165,7 +194,7 @@ def _(os, pd, requests):
             .reset_index()
         )
         return pd.concat([df_all, dff])
-    return combine_4_plus, get_ipc_from_hapi
+    return combine_4_plus, get_ipc_from_hapi, get_pop
 
 
 @app.cell
@@ -181,7 +210,7 @@ def _(mo):
 
 
 @app.cell
-def _(get_ipc_from_hapi, iso3s):
+def _(get_ipc_from_hapi, get_pop, iso3s):
     # Get all IPC data
     df_all = get_ipc_from_hapi()
 
@@ -192,12 +221,16 @@ def _(get_ipc_from_hapi, iso3s):
     # In theory could also do this by calc population_in_phase * population_fraction_in_phase
     pop_all = df_all[df_all['ipc_phase'] == 'all'].set_index(['location_code', 'ipc_type', 'From', 'To'])['population_in_phase']
     df_all['population_analyzed'] = df_all.set_index(['location_code', 'ipc_type', 'From', 'To']).index.map(pop_all).values
-    # df_all = df_all.drop(columns="population_in_phase")
-    return (df_all,)
+
+    # Get population data
+    df_pop = get_pop(adm_level=0)
+    df_pop = df_pop[df_pop.location_code.isin(list(iso3s.values()))][["location_code", "location_name", "population", "reference_period_end"]]
+    df_pop = df_pop[df_pop.location_code != "ZWE"]
+    return df_all, df_pop
 
 
 @app.cell
-def _(combine_4_plus, df_all, pd):
+def _(combine_4_plus, df_all, df_pop, np, pd):
     # Filter to just 3+ and 4+
     df_all_ = combine_4_plus(df_all)
     df_all_ = df_all_[df_all_.ipc_phase.isin(["3+", "4+"])]
@@ -267,6 +300,9 @@ def _(combine_4_plus, df_all, pd):
 
     df_all_wide['pt_change_3+'] = df_all_wide['pt_change_3+'].fillna(0)
     df_all_wide['pt_change_4+'] = df_all_wide['pt_change_4+'].fillna(0)
+
+    df_all_wide = df_all_wide.merge(df_pop[["location_code", "population"]], how="left")
+    df_all_wide["approx_prop_analyzed"] = np.round(df_all_wide["population_analyzed"] / df_all_wide["population"], 2)
     return df_all_long, df_all_wide
 
 
@@ -1135,7 +1171,7 @@ def _(mo):
 
 @app.cell
 def _(df_summary):
-    df_summary[['country', 'From', 'To', 'category', 'ipc_type', 'population_analyzed', 'proportion_3+', 'proportion_4+', 'population_3+', 'population_4+', 'pt_change_3+', 'pt_change_4+']]
+    df_summary[['country', 'From', 'To', 'category', 'ipc_type', 'population_analyzed','approx_prop_analyzed', 'proportion_3+', 'proportion_4+', 'population_3+', 'population_4+', 'pt_change_3+', 'pt_change_4+']]
     return
 
 
