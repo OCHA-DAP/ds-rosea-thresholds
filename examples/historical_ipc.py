@@ -309,7 +309,7 @@ def _(combine_4_plus, df_all, df_pop, np, pd):
 @app.cell
 def _(mo):
     box_display = mo.ui.switch(value=True, label="Disaggregate box plot by country")
-    value_select = mo.ui.radio(value="proportion", options=["proportion", "population"], label="Value to display", inline=True)
+    value_select = mo.ui.radio(value="proportion", options=["proportion", "population", "pt_change"], label="Value to display", inline=True)
     return box_display, value_select
 
 
@@ -324,12 +324,18 @@ def _(box_display, df_all_long, px, value_select):
     # Display box plot
     plot_axis_title = "% of population" if value_select.value == "proportion" else "Population"
 
+    if value_select.value == "pt_change": 
+        _df = df_all_long[df_all_long["pt_change"] > 0]
+        plot_axis_title = "Point increase" 
+    else:
+        _df = df_all_long
+
     if box_display.value:
-        fig_box = px.box(df_all_long, x='location_code', y=value_select.value, facet_row="phase", template="simple_white", title="Distribution of population in phase by country", height=350)
+        fig_box = px.box(_df, x='location_code', y=value_select.value, facet_row="phase", template="simple_white", title="Distribution of population in phase by country", height=350)
         fig_box.update_yaxes(title=plot_axis_title)
         fig_box.update_xaxes(title='Country')
     else:
-        fig_box = px.box(df_all_long, y=value_select.value, x='phase', template='simple_white', title="Distribution of population in phase", height=350)
+        fig_box = px.box(_df, y=value_select.value, x='phase', template='simple_white', title="Distribution of population in phase", height=350)
         fig_box.update_yaxes(title=plot_axis_title)
         fig_box.update_xaxes(title='IPC Phase')
     fig_box.update_layout(margin=dict(l=0, r=0, t=40, b=0))
@@ -357,53 +363,55 @@ def _(mo):
 @app.cell
 def _(mo):
     # VERY HIGH THRESHOLD
-    vh_s_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.3, label="Prop. 3+")
-    vh_s_p4 = mo.ui.number(start=0, stop=1, step=0.01, value=0.05, label="Prop. 4+")
-    vh_s_pp4 = mo.ui.number(start=0, stop=2000000, step=100000, value=1500000, label="Pop. 4+")
-    vh_d_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.3, label="Prop. 3+")
-    vh_d_d3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.05, label="Incr. 3+")
+    #vh_s_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.3, label="Prop. 3+")
+    #vh_s_p4 = mo.ui.number(start=0, stop=1, step=0.01, value=0.05, label="Prop. 4+")
+    vh_s_pp4 = mo.ui.number(start=0, stop=2000000, step=100000, value=500000, label="Pop. 4+")
+    vh_d_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.25, label="Prop. 3+")
+    #vh_d_d3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.03, label="Incr. 3+")
     vh_d_d4 = mo.ui.number(start=0, stop=1, step=0.01, value=0.02, label="Incr. 4+")
 
 
     mo.accordion({
         "**VERY HIGH**": 
         mo.vstack([
-            mo.hstack([mo.md("**Severe**:"), vh_s_p3," AND (" , vh_s_p4, "OR", vh_s_pp4, ")"], justify="start"),
+            mo.hstack([mo.md("**Severe**:"), vh_s_pp4], justify="start"),
             mo.md("**OR**"), 
-            mo.hstack([mo.md("**Deteriorating**:"), vh_d_p3, " AND ", vh_d_d3,  " AND ", vh_d_d4], justify='start')
+            mo.hstack([mo.md("**Deteriorating**:"), vh_d_p3, " AND ", vh_d_d4], justify='start')
         ])
     })
-    return vh_d_d3, vh_d_d4, vh_d_p3, vh_s_p3, vh_s_p4, vh_s_pp4
+    return vh_d_d4, vh_d_p3, vh_s_pp4
 
 
 @app.cell
 def _(mo):
     # HIGH THRESHOLD
-    h_s_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.25, label="Prop. 3+")
-    h_s_p4 = mo.ui.number(start=0, stop=1, step=0.01, value=0.03, label="Prop. 4+")
+    #h_s_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.25, label="Prop. 3+")
+    #h_s_p4 = mo.ui.number(start=0, stop=1, step=0.01, value=0.03, label="Prop. 4+")
 
     h_d_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.25, label="Prop. 3+")
-    h_d_d3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.03, label="Incr. 3+")
+    h_d_d3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.05, label="Incr. 3+")
+    h_s_pp4 = mo.ui.number(start=0, stop=2000000, step=50000, value=250000, label="Pop. 4+")
 
     mo.accordion({
         "**HIGH**":     mo.vstack([
-            mo.hstack([mo.md("**Severe**:"), h_s_p3," AND " , h_s_p4], justify="start"),
+            mo.hstack([mo.md("**Severe**:"), h_s_pp4], justify="start"),
             mo.md("**OR**"), 
             mo.hstack([mo.md("**Deteriorating**:"), h_d_p3, " AND ", h_d_d3,], justify='start')
         ])
     })
-    return h_d_d3, h_d_p3, h_s_p3, h_s_p4
+    return h_d_d3, h_d_p3, h_s_pp4
 
 
 @app.cell
 def _(mo):
     # MED THRESHOLD
     m_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.15, label="Prop. 3+")
+    m_pp4 = mo.ui.number(start=0, stop=2000000, step=50000, value=50000, label="Pop. 4+")
 
     mo.accordion({
-        "**MEDIUM**": m_p3
+        "**MEDIUM**": mo.hstack([m_p3, mo.md("**OR**"), m_pp4], justify='start')
     })
-    return (m_p3,)
+    return m_p3, m_pp4
 
 
 @app.cell
@@ -431,16 +439,13 @@ def _(
     df_all_wide,
     h_d_d3,
     h_d_p3,
-    h_s_p3,
-    h_s_p4,
+    h_s_pp4,
     iso3_to_country,
     m_p3,
+    m_pp4,
     np,
-    vh_d_d3,
     vh_d_d4,
     vh_d_p3,
-    vh_s_p3,
-    vh_s_p4,
     vh_s_pp4,
 ):
     def assign_cat_row(row):
@@ -450,11 +455,11 @@ def _(
         D3 = row.get("pt_change_3+", np.nan)
         D4 = row.get("pt_change_4+", np.nan)
 
-        VH_S = (P3 >= vh_s_p3.value and ((P4 >= vh_s_p4.value) or (PP4 >= vh_s_pp4.value)))
-        VH_D = (P3 >= vh_d_p3.value and D3 >= vh_d_d3.value*100 and D4 >= vh_d_d4.value*100)
-        H_S = (P3 >= h_s_p3.value and P4 >= h_s_p4.value)
+        VH_S = (PP4 >= vh_s_pp4.value)
+        VH_D = (P3 >= vh_d_p3.value and D4 >= vh_d_d4.value*100)
+        H_S = (PP4 >= h_s_pp4.value)
         H_D = (P3 >= h_d_p3.value and D3 >= h_d_d3.value*100)
-        M = (P3 >= m_p3.value)
+        M = (P3 >= m_p3.value) or (PP4 >= m_pp4.value)
 
         if (VH_S and VH_D):
             return "very high - both"
@@ -487,13 +492,15 @@ def _(
 @app.cell
 def _(df_summary, np):
     summary_stats = {}
+    n_years = df_summary.year.nunique()  # NOTE: This includes 2026
+    n_all = len(df_summary)
     for cat in df_summary.cat_1.unique():
         _df_summary_sel = df_summary[df_summary.cat_1 == cat]
         summary_stats[cat] = {}
-        summary_stats[cat]["n_rep"] = len(_df_summary_sel)
-        summary_stats[cat]["p_rep"] = np.round((len(_df_summary_sel) / len(df_summary)) *100, 1)
-        reports_by_year = _df_summary_sel.groupby('start_year').size()
-        summary_stats[cat]["avg"] = np.round(reports_by_year.mean(),1)
+        n_reports = len(_df_summary_sel)
+        summary_stats[cat]["n_rep"] = n_reports
+        summary_stats[cat]["p_rep"] = np.round((n_reports/n_all)*100, 1)
+        summary_stats[cat]["avg"] = np.round(n_reports/n_years, 1)
     return (summary_stats,)
 
 
@@ -501,26 +508,23 @@ def _(df_summary, np):
 def _(
     h_d_d3,
     h_d_p3,
-    h_s_p3,
-    h_s_p4,
+    h_s_pp4,
     m_p3,
+    m_pp4,
     mo,
     summary_stats,
-    vh_d_d3,
     vh_d_d4,
     vh_d_p3,
-    vh_s_p3,
-    vh_s_p4,
     vh_s_pp4,
 ):
     mo.md(
         f"""
-    | **Category**    | **Description**                                                                                                                                                                                                                                                                                                                    | **Support Package**                                             | **Num. Reports that <br>meet criteria**    | **Percentage of all<br>IPC reports**    | **Average<br>annual**             |
-    | :-------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------                                                                                      | :-------------------------------------------------------------- | :----------------------------------------- | :-------------------------------------- | -:----------------------          |
-    | Low             | All other reports                                                                                                                                                                                                                                                                                                                  | No Support                                                      | {summary_stats["low"]["n_rep"]}            | {summary_stats["low"]["p_rep"]}         | {summary_stats["low"]["avg"]}     |
-    | Medium          | Between {m_p3.value * 100}% and {h_s_p3.value * 100}% of the population in IPC 3+                                                                                                                                                                                                                                                      | Remote Support + <br>Flash Appeal                               | {summary_stats["medium"]["n_rep"]}         | {summary_stats["medium"]["p_rep"]}      | {summary_stats["medium"]["avg"]}  |
-    | High            | **Deteriorating crises**:<br> At least {h_d_p3.value * 100}% of the population in IPC 3+ AND at least a {h_d_d3.value * 100}% increase in IPC 3+<br>  OR<br> **Severe crises**:<br> At least {h_s_p3.value * 100}% of the total population in IPC 3+ AND {h_s_p4.value * 100}% of total in IPC4+                                           | Physical Surge Support + <br>Flash Appeal                       | {summary_stats["high"]["n_rep"]}           | {summary_stats["high"]["p_rep"]}        | {summary_stats["high"]["avg"]}    |
-    | Very high         | **Deteriorating crises**:<br> At least {vh_d_p3.value * 100}% of the population in IPC 3+ AND at least a {vh_d_d3.value * 100}% increase in IPC 3+ AND at least {vh_d_d4.value * 100}% increase in IPC 4+<br>  OR<br> **Severe crises**:<br> At least {vh_s_p3.value * 100}% of the population in IPC 3+ AND ({vh_s_p4.value * 100}% in IPC4+ OR {vh_s_pp4.value:,} people in IPC4+)| Physical Surge Support + <br>Flash Appeal + <br>CERF request    | {summary_stats["very high"]["n_rep"]}        | {summary_stats["very high"]["p_rep"]}     | {summary_stats["very high"]["avg"]} |
+    | **Category** | **Description**                                                                                                                                                                                                                            | **Support Package**                                          | **Num. Reports that <br>meet criteria** | **Percentage of all<br>IPC reports**  | **Average<br>annual**               |
+    |:--------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------|-----------------------------------------|---------------------------------------|-------------------------------------|
+    | Low          | All other reports                                                                                                                                                                                                                          | No Support                                                   | {summary_stats["low"]["n_rep"]}         | {summary_stats["low"]["p_rep"]}       | {summary_stats["low"]["avg"]}       |
+    | Medium       | At least {m_p3.value * 100}% of the population in IPC 3+ <br>OR <br>Above {m_pp4.value:,} people in IPC 4+                                                                                                                           | Remote Support + Flash Appeal                            | {summary_stats["medium"]["n_rep"]}      | {summary_stats["medium"]["p_rep"]}    | {summary_stats["medium"]["avg"]}    |
+    | High         | **Deteriorating crises**:<br> At least {h_d_p3.value * 100}% of the population in IPC 3+ AND at least a {h_d_d3.value * 100}% increase in IPC 3+ <br><br>  OR <br> **Severe crises**:<br> At least {h_s_pp4.value:,} people in IPC 4+  | Physical Surge Support + Flash Appeal                    | {summary_stats["high"]["n_rep"]}        | {summary_stats["high"]["p_rep"]}      | {summary_stats["high"]["avg"]}      |
+    | Very high    | **Deteriorating crises**:<br> At least {vh_d_p3.value * 100}% of the population in IPC 3+ AND at least {vh_d_d4.value * 100}% increase in IPC 4+ <br>  OR <br> **Severe crises**:<br> At least {vh_s_pp4.value:,} people in IPC 4+ | Physical Surge Support + Flash Appeal + <br>CERF request | {summary_stats["very high"]["n_rep"]}   | {summary_stats["very high"]["p_rep"]} | {summary_stats["very high"]["avg"]} |
     """
     )
     return
