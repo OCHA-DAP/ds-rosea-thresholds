@@ -7,6 +7,7 @@ app = marimo.App(width="medium", app_title="ROSEA IPC Thresholds")
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -151,7 +152,6 @@ def _(os, pd, requests):
             ]
         ]
 
-
     def get_pop(iso3=None, adm_level=None):
         endpoint = "https://hapi.humdata.org/api/v2/geography-infrastructure/baseline-population"
         params = {
@@ -177,7 +177,6 @@ def _(os, pd, requests):
         df_response = df_response[df_response.age_range == "all"]
 
         return df_response
-
 
     def combine_4_plus(df_all):
         df = df_all.copy()
@@ -205,6 +204,7 @@ def _(os, pd, requests):
             .reset_index()
         )
         return pd.concat([df_all, dff])
+
     return combine_4_plus, get_ipc_from_hapi, get_pop
 
 
@@ -258,12 +258,10 @@ def _(combine_4_plus, df_all, df_pop, np, pd):
     # Prioritize current over first proj over second proj
     priority = {"current": 1, "first projection": 2, "second projection": 3}
     df_all_["priority"] = df_all_["ipc_type"].map(priority)
-    df_all_long = df_all_.sort_values(
-        ["location_code", "priority"]
-    ).drop_duplicates(["location_code", "ipc_phase", "From", "To"], keep="first")
-    df_all_long = df_all_long.sort_values(
-        ["location_code", "From"], ascending=True
+    df_all_long = df_all_.sort_values(["location_code", "priority"]).drop_duplicates(
+        ["location_code", "ipc_phase", "From", "To"], keep="first"
     )
+    df_all_long = df_all_long.sort_values(["location_code", "From"], ascending=True)
 
     # Convert the data to wide format
     index_cols = [
@@ -297,15 +295,11 @@ def _(combine_4_plus, df_all, df_pop, np, pd):
 
     # Calculate percentage point change only when comparable
     df_all_wide["pt_change_3+"] = (
-        df_all_wide.groupby("location_code")[
-            "population_fraction_in_phase_3+"
-        ].diff()
+        df_all_wide.groupby("location_code")["population_fraction_in_phase_3+"].diff()
         * 100
     )
     df_all_wide["pt_change_4+"] = (
-        df_all_wide.groupby("location_code")[
-            "population_fraction_in_phase_4+"
-        ].diff()
+        df_all_wide.groupby("location_code")["population_fraction_in_phase_4+"].diff()
         * 100
     )
 
@@ -327,9 +321,7 @@ def _(combine_4_plus, df_all, df_pop, np, pd):
 
     for col in ["population_3+", "population_4+", "pt_change_3+", "pt_change_4+"]:
         df_all_wide[col] = (
-            pd.to_numeric(df_all_wide[col], errors="coerce")
-            .round()
-            .astype("Int64")
+            pd.to_numeric(df_all_wide[col], errors="coerce").round().astype("Int64")
         )
 
     df_all_long = pd.wide_to_long(
@@ -351,9 +343,7 @@ def _(combine_4_plus, df_all, df_pop, np, pd):
     df_all_wide["pt_change_3+"] = df_all_wide["pt_change_3+"].fillna(0)
     df_all_wide["pt_change_4+"] = df_all_wide["pt_change_4+"].fillna(0)
 
-    df_all_wide = df_all_wide.merge(
-        df_pop[["location_code", "population"]], how="left"
-    )
+    df_all_wide = df_all_wide.merge(df_pop[["location_code", "population"]], how="left")
     df_all_wide["approx_prop_analyzed"] = np.round(
         df_all_wide["population_analyzed"] / df_all_wide["population"], 2
     )
@@ -362,9 +352,7 @@ def _(combine_4_plus, df_all, df_pop, np, pd):
 
 @app.cell
 def _(mo):
-    box_display = mo.ui.switch(
-        value=True, label="Disaggregate box plot by country"
-    )
+    box_display = mo.ui.switch(value=True, label="Disaggregate box plot by country")
     value_select = mo.ui.radio(
         value="proportion",
         options=["proportion", "population", "pt_change"],
@@ -450,18 +438,13 @@ def _(mo):
         start=0, stop=1, step=0.01, value=0.25, label="Proportion 3+"
     )
     # vh_d_d3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.03, label="Incr. 3+")
-    vh_d_d4 = mo.ui.number(
-        start=0, stop=1, step=0.01, value=0.03, label="Increase 4+"
-    )
-
+    vh_d_d4 = mo.ui.number(start=0, stop=1, step=0.01, value=0.03, label="Increase 4+")
 
     mo.accordion(
         {
             "**VERY HIGH**": mo.vstack(
                 [
-                    mo.hstack(
-                        [mo.md("**Emergency**:"), vh_s_pp4], justify="start"
-                    ),
+                    mo.hstack([mo.md("**Emergency**:"), vh_s_pp4], justify="start"),
                     mo.md("**OR**"),
                     mo.hstack(
                         [mo.md("**Deteriorating**:"), vh_d_p3, " AND ", vh_d_d4],
@@ -584,7 +567,6 @@ def _(
         elif M:
             return "medium"
         return "low"
-
 
     df_summary = df_all_wide.copy()
     df_summary["category"] = df_summary.apply(assign_cat_row, axis=1)
@@ -733,9 +715,7 @@ def _(category_multiselect, df_summary):
 @app.cell
 def _(iso3s, pd, stratus):
     # Clean surge data
-    df_ = stratus.load_csv_from_blob(
-        "ds-rosea-thresholds/rosea_surge_20202024.csv"
-    )
+    df_ = stratus.load_csv_from_blob("ds-rosea-thresholds/rosea_surge_20202024.csv")
     df_clean = df_.copy()
     df_clean["start_date"] = pd.to_datetime(
         df_clean["Date of departure"], format="mixed", dayfirst=True
@@ -783,9 +763,9 @@ def _(iso3s, pd, stratus):
         df_cerf["totalAmountApproved"], errors="coerce"
     ).fillna(0)
     region_keep = {"eastern africa", "southern africa"}
-    mask = df_cerf["emergencyTypeName_l"].eq("drought") & df_cerf[
-        "regionName_l"
-    ].isin(region_keep)
+    mask = df_cerf["emergencyTypeName_l"].eq("drought") & df_cerf["regionName_l"].isin(
+        region_keep
+    )
     df_cerf = df_cerf.loc[mask].dropna(subset=["dateUSGSignature"]).copy()
     df_cerf.rename(
         columns={
@@ -853,15 +833,11 @@ def _(
     all_countries = df_summary.country.unique()
 
     # Create position mapping for ALL countries
-    country_positions = {
-        country: i for i, country in enumerate(sorted(all_countries))
-    }
+    country_positions = {country: i for i, country in enumerate(sorted(all_countries))}
     countries = sorted(all_countries)  # Use this for y-axis labels
 
     # Convert dates with proper format specification
-    df_summary_sel["From"] = pd.to_datetime(
-        df_summary_sel["From"], format="%b %d, %Y"
-    )
+    df_summary_sel["From"] = pd.to_datetime(df_summary_sel["From"], format="%b %d, %Y")
     df_summary_sel["To"] = pd.to_datetime(df_summary_sel["To"], format="%b %d, %Y")
 
     # -----------------------------------------
@@ -937,10 +913,7 @@ def _(
         fig.add_trace(
             go.Scatter(
                 x=df_fa["date"],
-                y=[
-                    country_positions.get(country, -1)
-                    for country in df_fa["country"]
-                ],
+                y=[country_positions.get(country, -1) for country in df_fa["country"]],
                 mode="markers",
                 marker=dict(
                     color=fa_color,
@@ -963,8 +936,7 @@ def _(
             go.Scatter(
                 x=df_cerf["date"],
                 y=[
-                    country_positions.get(country, -1)
-                    for country in df_cerf["country"]
+                    country_positions.get(country, -1) for country in df_cerf["country"]
                 ],
                 mode="markers",
                 marker=dict(
@@ -1312,9 +1284,7 @@ def _(
         for _, _surge_row in _surge_data.iterrows():
             _line_y = _y_pos
 
-            _x_coords.extend(
-                [_surge_row["start_date"], _surge_row["end_date"], None]
-            )
+            _x_coords.extend([_surge_row["start_date"], _surge_row["end_date"], None])
             _y_coords.extend([_line_y, _line_y, None])
 
         if _x_coords:
