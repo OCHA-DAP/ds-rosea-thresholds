@@ -444,14 +444,14 @@ def _(mo):
     # vh_s_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.3, label="Prop. 3+")
     # vh_s_p4 = mo.ui.number(start=0, stop=1, step=0.01, value=0.05, label="Prop. 4+")
     vh_s_pp4 = mo.ui.number(
-        start=0, stop=2000000, step=100000, value=500000, label="Pop. 4+"
+        start=0, stop=2000000, step=100000, value=500000, label="Population 4+"
     )
     vh_d_p3 = mo.ui.number(
-        start=0, stop=1, step=0.01, value=0.25, label="Prop. 3+"
+        start=0, stop=1, step=0.01, value=0.25, label="Proportion 3+"
     )
     # vh_d_d3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.03, label="Incr. 3+")
     vh_d_d4 = mo.ui.number(
-        start=0, stop=1, step=0.01, value=0.02, label="Incr. 4+"
+        start=0, stop=1, step=0.01, value=0.03, label="Increase 4+"
     )
 
 
@@ -459,7 +459,9 @@ def _(mo):
         {
             "**VERY HIGH**": mo.vstack(
                 [
-                    mo.hstack([mo.md("**Severe**:"), vh_s_pp4], justify="start"),
+                    mo.hstack(
+                        [mo.md("**Emergency**:"), vh_s_pp4], justify="start"
+                    ),
                     mo.md("**OR**"),
                     mo.hstack(
                         [mo.md("**Deteriorating**:"), vh_d_p3, " AND ", vh_d_d4],
@@ -478,17 +480,17 @@ def _(mo):
     # h_s_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.25, label="Prop. 3+")
     # h_s_p4 = mo.ui.number(start=0, stop=1, step=0.01, value=0.03, label="Prop. 4+")
 
-    h_d_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.25, label="Prop. 3+")
-    h_d_d3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.05, label="Incr. 3+")
+    h_d_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.25, label="Proportion 3+")
+    h_d_d3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.05, label="Increase 3+")
     h_s_pp4 = mo.ui.number(
-        start=0, stop=2000000, step=50000, value=200000, label="Pop. 4+"
+        start=0, stop=2000000, step=50000, value=200000, label="Population 4+"
     )
 
     mo.accordion(
         {
             "**HIGH**": mo.vstack(
                 [
-                    mo.hstack([mo.md("**Severe**:"), h_s_pp4], justify="start"),
+                    mo.hstack([mo.md("**Emergency**:"), h_s_pp4], justify="start"),
                     mo.md("**OR**"),
                     mo.hstack(
                         [
@@ -509,9 +511,9 @@ def _(mo):
 @app.cell
 def _(mo):
     # MED THRESHOLD
-    m_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.18, label="Prop. 3+")
+    m_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.18, label="Proportion 3+")
     m_pp4 = mo.ui.number(
-        start=0, stop=2000000, step=50000, value=50000, label="Pop. 4+"
+        start=0, stop=2000000, step=50000, value=50000, label="Population 4+"
     )
 
     mo.accordion(
@@ -535,7 +537,7 @@ def _(mo):
 @app.cell
 def _(mo):
     mo.md(
-        r"""The table below summarizes some initial proposed thresholds for four levels of alert based on incoming IPC reports. Each alert level is tied to a specific support package. Note that the "high" and "very high" alert levels each have two potential trigger conditions, designed to capture both severe crises OR rapidly deteriorating conditions. **Note** that we do not evaluate for deteriorating conditions across reports where the population analyzed is significantly different (>10%).  The table below also summarizes some key statistics per alert level based on a historical analysis of IPC data (as shown in the charts below)."""
+        r"""The table below summarizes some initial proposed thresholds for four levels of alert based on incoming IPC reports. Each alert level is tied to a specific support package. Note that the "high" and "very high" alert levels each have two potential trigger conditions, designed to capture both emergency crises OR rapidly deteriorating conditions. **Note** that we do not evaluate for deteriorating conditions across reports where the population analyzed is significantly different (>10%).  The table below also summarizes some key statistics per alert level based on a historical analysis of IPC data (as shown in the charts below)."""
     )
     return
 
@@ -568,15 +570,15 @@ def _(
         M = (P3 >= m_p3.value) or (PP4 >= m_pp4.value)
 
         if VH_S and VH_D:
-            return "very high - both"
+            return "very high - all criteria"
         elif VH_S:
-            return "very high - severe"
+            return "very high - emergency"
         elif VH_D:
             return "very high - deteriorating"
         elif H_S and H_D:
-            return "high - both"
+            return "high - all criteria"
         elif H_S:
-            return "high - severe"
+            return "high - emergency"
         elif H_D:
             return "high - deteriorating"
         elif M:
@@ -630,8 +632,8 @@ def _(
     |:--------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------|-----------------------------------------|---------------------------------------|-------------------------------------|
     | Low          | All other reports                                                                                                                                                                                                                          | No Support                                                   | {summary_stats["low"]["n_rep"]}         | {summary_stats["low"]["p_rep"]}       | {summary_stats["low"]["avg"]}       |
     | Medium       | At least {m_p3.value * 100}% of the population in IPC 3+ <br>OR <br>Above {m_pp4.value:,} people in IPC 4+                                                                                                                           | Remote Support + Flash Appeal                            | {summary_stats["medium"]["n_rep"]}      | {summary_stats["medium"]["p_rep"]}    | {summary_stats["medium"]["avg"]}    |
-    | High         | **Deteriorating crises**:<br> At least {h_d_p3.value * 100}% of the population in IPC 3+ AND at least a {h_d_d3.value * 100}% increase in IPC 3+ <br><br>  OR <br> **Severe crises**:<br> At least {h_s_pp4.value:,} people in IPC 4+  | Physical Surge Support + Flash Appeal                    | {summary_stats["high"]["n_rep"]}        | {summary_stats["high"]["p_rep"]}      | {summary_stats["high"]["avg"]}      |
-    | Very high    | **Deteriorating crises**:<br> At least {vh_d_p3.value * 100}% of the population in IPC 3+ AND at least {vh_d_d4.value * 100}% increase in IPC 4+ <br>  OR <br> **Severe crises**:<br> At least {vh_s_pp4.value:,} people in IPC 4+ | Physical Surge Support + Flash Appeal + <br>CERF request | {summary_stats["very high"]["n_rep"]}   | {summary_stats["very high"]["p_rep"]} | {summary_stats["very high"]["avg"]} |
+    | High         | **Deteriorating crises**:<br> At least {h_d_p3.value * 100}% of the population in IPC 3+ AND at least a {h_d_d3.value * 100}% increase in IPC 3+ <br><br>  OR <br> **Emergency crises**:<br> At least {h_s_pp4.value:,} people in IPC 4+  | Physical Surge Support + Flash Appeal                    | {summary_stats["high"]["n_rep"]}        | {summary_stats["high"]["p_rep"]}      | {summary_stats["high"]["avg"]}      |
+    | Very high    | **Deteriorating crises**:<br> At least {vh_d_p3.value * 100}% of the population in IPC 3+ AND at least {vh_d_d4.value * 100}% increase in IPC 4+ <br>  OR <br> **Emergency crises**:<br> At least {vh_s_pp4.value:,} people in IPC 4+ | Physical Surge Support + Flash Appeal + <br>CERF request | {summary_stats["very high"]["n_rep"]}   | {summary_stats["very high"]["p_rep"]} | {summary_stats["very high"]["avg"]} |
     """
     )
     return
@@ -708,21 +710,22 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    category_radio = mo.ui.radio(
+    category_multiselect = mo.ui.multiselect(
         options=["very high", "high", "medium", "low"],
         label="Select category to investigate:",
-        value="very high",
-        inline=True,
+        value=["very high"],
     )
 
     display_surge = mo.ui.switch(label="Overlay validation points", value=False)
-    mo.hstack([category_radio, display_surge])
-    return category_radio, display_surge
+    mo.hstack([category_multiselect, display_surge])
+    return category_multiselect, display_surge
 
 
 @app.cell
-def _(category_radio, df_summary):
-    df_summary_sel = df_summary[df_summary.cat_1 == category_radio.value].copy()
+def _(category_multiselect, df_summary):
+    df_summary_sel = df_summary[
+        df_summary.cat_1.isin(category_multiselect.value)
+    ].copy()
     df_summary_sel["start_year"] = df_summary_sel["From"].dt.year
     return (df_summary_sel,)
 
@@ -815,7 +818,7 @@ def _():
     }
 
     shape_config = {
-        "severe": {"symbol": "diamond", "line_width": 0},
+        "emergency": {"symbol": "diamond", "line_width": 0},
         "deteriorating": {"symbol": "diamond-open", "line_width": 2},
         "both": {"symbol": "circle", "line_width": 0},
         None: {"symbol": "circle", "line_width": 0},
@@ -825,7 +828,7 @@ def _():
 
 @app.cell
 def _(
-    category_radio,
+    category_multiselect,
     cerf_color,
     df_cerf,
     df_fa,
@@ -1036,7 +1039,7 @@ def _(
                         marker=dict(
                             symbol=config["symbol"],
                             size=12,
-                            color=level_colors[category_radio.value],
+                            color="black",
                             line=dict(width=config["line_width"], color="white"),
                         ),
                         name=cat_2,
@@ -1046,26 +1049,46 @@ def _(
                     )
                 )
                 added_shapes.add(cat_2)
+
+    # -----------------------------------------
+    # Workaround to add some data to the plot area so that the
+    # empty grey shapes show up if they are all that is selected
+
+    if len(fig.data) == 0:
+        print("no data!")
+        # Add invisible trace to establish plot area
+        fig.add_trace(
+            go.Scatter(
+                x=[start_date, end_date],
+                y=[0, len(countries) - 1],
+                mode="markers",
+                marker=dict(size=0.1, color="rgba(0,0,0,0)"),
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
+
     # -----------------------------------------
     # Traces just for the legend
 
-    fig.add_trace(
-        go.Scatter(
-            x=[None],
-            y=[None],
-            mode="markers",
-            marker=dict(
-                symbol="square",
-                size=15,
-                color=level_colors[category_radio.value],
-                opacity=0.6,
-            ),
-            name=category_radio.value.capitalize(),
-            showlegend=True,
-            legendgroup="threshold",
-            legendgrouptitle_text="IPC Threshold",
+    for _cat in category_multiselect.value:
+        fig.add_trace(
+            go.Scatter(
+                x=[None],
+                y=[None],
+                mode="markers",
+                marker=dict(
+                    symbol="square",
+                    size=15,
+                    color=level_colors[_cat],
+                    opacity=0.6,
+                ),
+                name=_cat.capitalize(),
+                showlegend=True,
+                legendgroup="threshold",
+                legendgrouptitle_text="IPC Threshold",
+            )
         )
-    )
 
     fig.add_trace(
         go.Scatter(
@@ -1082,10 +1105,19 @@ def _(
 
     # -----------------------------------------
     # Layout functions
+    if len(category_multiselect.value) == 4:
+        title_insert = "all"
+    elif len(category_multiselect.value) > 1:
+        title_insert = ", ".join(category_multiselect.value)
+    elif len(category_multiselect.value) == 1:
+        title_insert = category_multiselect.value[0]
+    else:
+        title_insert = "none"
 
+    title_insert
     fig.update_layout(
         title={
-            "text": f"IPC reports meeting criteria for <b>{category_radio.value}</b> conditions",
+            "text": f"IPC reports meeting criteria for <b>{title_insert}</b> conditions",
             "x": 0.5,
             "font": {"size": 20},
         },
