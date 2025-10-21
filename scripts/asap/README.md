@@ -2,7 +2,7 @@
 
 ## Overview
 
-The ASAP threshold analysis pipeline calculates monthly population exposure to different warning levels across countries in the ROSEA (Regional Office for Southern and Eastern Africa) region. The main output is `monthly_country_exposure.csv`, which contains country-level monthly aggregations of population exposure to ASAP warning thresholds.
+The ASAP threshold analysis pipeline calculates monthly population exposure to different warning levels across countries in the ROSEA (Regional Office for Southern and Eastern Africa) region. The main output is `monthly_exposure_crop_rangeland_warnings.csv`, which contains country-level monthly aggregations of population exposure to ASAP warning thresholds.
 
 ## Analysis Logic
 
@@ -85,7 +85,7 @@ for threshold in WARNING_THRESHOLDS:
 
 ### Output Schema
 
-The `monthly_country_exposure.csv` file contains the following columns:
+The `monthly_exposure_crop_rangeland_warnings.csv` file contains the following columns:
 
 - `country`: Country name
 - `year_month`: Year-month period (YYYY-MM format)
@@ -141,7 +141,7 @@ monthly_exposure = analyzer.run_full_analysis()
 
 - **Real vs Test Data**: Set `use_random_population=False` for real WorldPop data, `True` for generated test data
 - **Azure Blob Storage**: Configure `USE_BLOB_STORAGE` in `azure_config.py` for cloud data sources
-- **Output Location**: Results saved to `data/processed/asap/threshold_analysis/monthly_country_exposure.csv`
+- **Output Location**: Results saved to `data/processed/asap/asap_warning_exposure/monthly_exposure_crop_rangeland_warnings.csv`
 
 ### Testing
 

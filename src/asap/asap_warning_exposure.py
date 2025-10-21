@@ -237,44 +237,83 @@ class AsapWarningExposure:
             f"Reduced from {len(warnings_with_pop):,} dekadal records to {len(monthly_data):,} monthly records"
         )
 
-        # Calculate threshold-based exposures
-        exposure_results = []
+        # Calculate exposure using clean pandas operations (no nested loops!)
 
-        # Group by country and month only, then work with each group
-        for (country, month), group in monthly_data.groupby(
-            [WARNINGS_COUNTRY_COL, "year_month"]
-        ):
-            result = {
-                "country": country,
-                "year_month": str(month),
-                "total_population": group["population"].sum(),
-            }
+        # Base statistics - country/month totals
+        base_stats = (
+            monthly_data.groupby([WARNINGS_COUNTRY_COL, "year_month"])
+            .agg({"population": "sum"})
+            .rename(columns={"population": "total_population"})
+            .reset_index()
+            .rename(columns={WARNINGS_COUNTRY_COL: "country"})
+        )
 
-            # Calculate population at each warning level
-            warning_level_groups = group.groupby(warning_column)["population"].sum()
-            for warning_level, pop in warning_level_groups.items():
-                col_name = (
-                    f'{warning_type}_pop_{warning_level.lower().replace(" ", "_")}'
+        # Warning level populations using pivot_table
+        warning_level_pops = (
+            monthly_data.groupby([WARNINGS_COUNTRY_COL, "year_month", warning_column])[
+                "population"
+            ]
+            .sum()
+            .reset_index()
+            .pivot_table(
+                index=[WARNINGS_COUNTRY_COL, "year_month"],
+                columns=warning_column,
+                values="population",
+                fill_value=0,
+            )
+            .reset_index()
+            .rename(columns={WARNINGS_COUNTRY_COL: "country"})
+        )
+
+        # Clean column names for warning levels
+        warning_level_pops.columns = [
+            (
+                col
+                if col in ["country", "year_month"]
+                else f'{warning_type}_pop_{str(col).lower().replace(" ", "_")}'
+            )
+            for col in warning_level_pops.columns
+        ]
+
+        # Merge base stats with warning populations
+        result = base_stats.merge(
+            warning_level_pops, on=["country", "year_month"], how="left"
+        ).fillna(0)
+
+        # Calculate threshold-based populations (X+ warning levels)
+        for threshold in WARNING_THRESHOLDS:
+            # Calculate threshold populations
+            threshold_pops = (
+                monthly_data[
+                    (monthly_data[numeric_column] >= threshold)
+                    & (monthly_data[numeric_column] >= 0)  # Exclude off-season/no-crop
+                ]
+                .groupby([WARNINGS_COUNTRY_COL, "year_month"])["population"]
+                .sum()
+                .reset_index()
+                .rename(
+                    columns={
+                        WARNINGS_COUNTRY_COL: "country",
+                        "population": f"{warning_type}_pop_warning_{threshold}_plus",
+                    }
                 )
-                result[col_name] = pop
+            )
 
-            # Calculate threshold-based populations (X+ warning levels)
-            for threshold in WARNING_THRESHOLDS:
-                threshold_pop = group[
-                    (group[numeric_column] >= threshold)
-                    & (group[numeric_column] >= 0)  # Exclude off-season/no-crop
-                ]["population"].sum()
+            # Merge threshold populations
+            result = result.merge(
+                threshold_pops, on=["country", "year_month"], how="left"
+            ).fillna(0)
 
-                result[f"{warning_type}_pop_warning_{threshold}_plus"] = threshold_pop
-                result[f"{warning_type}_pct_warning_{threshold}_plus"] = (
-                    threshold_pop / result["total_population"] * 100
-                    if result["total_population"] > 0
-                    else 0
-                )
+            # Calculate percentages
+            result[f"{warning_type}_pct_warning_{threshold}_plus"] = np.where(
+                result["total_population"] > 0,
+                result[f"{warning_type}_pop_warning_{threshold}_plus"]
+                / result["total_population"]
+                * 100,
+                0,
+            )
 
-            exposure_results.append(result)
-
-        return pd.DataFrame(exposure_results).fillna(0)
+        return result
 
     def calculate_monthly_exposure(self) -> pd.DataFrame:
         """Calculate monthly population exposure by country and warning level for both crop and range."""
@@ -344,7 +383,7 @@ class AsapWarningExposure:
             from src.asap.azure_config import STORAGE_ACCOUNT, SAS_TOKEN, CONTAINER
 
             # Build fsspec path
-            blob_path = f"abfs://projects@{STORAGE_ACCOUNT}.dfs.core.windows.net/ds-rosea-thresholds/processed/asap/threshold_analysis/monthly_exposure_crop_rangeland_warnings.csv"
+            blob_path = f"abfs://projects@{STORAGE_ACCOUNT}.dfs.core.windows.net/ds-rosea-thresholds/processed/asap/asap_warning_exposure/monthly_exposure_crop_rangeland_warnings.csv"  # noqa: E501
 
             # Create filesystem with SAS token
             fs = fsspec.filesystem(
@@ -355,16 +394,14 @@ class AsapWarningExposure:
             with fs.open(blob_path, "w") as f:
                 self.monthly_exposure.to_csv(f, index=False)
 
-            logger.info(
-                f"Monthly exposure data saved to blob using fsspec: {blob_path}"
-            )
+            logger.info(f"Monthly exposure data saved to blob using fsspec: {blob_path}")  # noqa: E501
 
         except Exception as e:
             logger.error(f"Failed to save exposure data to blob: {e}")
             raise
 
     def get_summary_stats(self) -> Dict:
-        """Get summary statistics of the threshold analysis for both warning types."""
+        """Get summary statistics of the threshold analysis for both warning types."""  # noqa: E501
         if self.monthly_exposure is None:
             return {}
 
@@ -378,7 +415,7 @@ class AsapWarningExposure:
             },
         }
 
-        # Calculate average populations at different thresholds for both warning types
+        # Calculate average populations at different thresholds for both warning types  # noqa: E501
         for warning_type in WARNING_COLUMNS.keys():
             stats[f"{warning_type}_warning_stats"] = {}
             for threshold in WARNING_THRESHOLDS:

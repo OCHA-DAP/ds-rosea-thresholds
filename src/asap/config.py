@@ -67,8 +67,8 @@ WARNING_COLUMNS = {"crop": "w_crop_gr", "range": "w_range_gr"}
 # Threshold levels for analysis (ascending severity)
 WARNING_THRESHOLDS = [1, 2, 3, 4]  # Warning group 1+, 2+, 3+, 4+
 
-# Output file paths for threshold analysis
-THRESHOLD_ANALYSIS_DIR = ASAP_PROCESSED_DATA_DIR / "threshold_analysis"
+# Output file paths for ASAP warning exposure analysis
+THRESHOLD_ANALYSIS_DIR = ASAP_PROCESSED_DATA_DIR / "asap_warning_exposure"
 MONTHLY_EXPOSURE_FILE = THRESHOLD_ANALYSIS_DIR / "monthly_exposure_crop_rangeland_warnings.csv"
 POPULATION_TEST_FILE = THRESHOLD_ANALYSIS_DIR / "admin2_test_populations.csv"
 

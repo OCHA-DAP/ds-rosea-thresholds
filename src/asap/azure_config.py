@@ -32,7 +32,7 @@ BLOB_WARNINGS_FILE = f"{BLOB_RAW_PATH}/warnings_l2_ts.csv"
 BLOB_WORLDPOP_FILE = f"{BLOB_RAW_PATH}/worldpop_zonal_sum_rosea15_l2.csv"
 
 BLOB_FILTERED_WARNINGS = f"{BLOB_PROCESSED_PATH}/warnings_filtered.csv"
-BLOB_THRESHOLD_ANALYSIS_DIR = f"{BLOB_PROCESSED_PATH}/threshold_analysis"
+BLOB_THRESHOLD_ANALYSIS_DIR = f"{BLOB_PROCESSED_PATH}/asap_warning_exposure"
 BLOB_MONTHLY_EXPOSURE_FILE = (
     f"{BLOB_THRESHOLD_ANALYSIS_DIR}/monthly_exposure_crop_rangeland_warnings.csv"
 )
@@ -74,11 +74,11 @@ def validate_azure_config() -> bool:
         missing_config.append("AZURE_SAS_TOKEN")
 
     if missing_config:
-        logger.error(f"Missing Azure configuration: {', '.join(missing_config)}")
-        logger.error("Please set these environment variables or create a .env file")
+        logger.error(f"Missing Azure configuration: {', '.join(missing_config)}")  # noqa: E501
+        logger.error("Please set these environment variables or create a .env file")  # noqa: E501
         return False
 
-    logger.info(f"Azure config validated: {STORAGE_ACCOUNT}/{CONTAINER}/{PROJECT_PATH}")
+    logger.info(f"Azure config validated: {STORAGE_ACCOUNT}/{CONTAINER}/{PROJECT_PATH}")  # noqa: E501
     return True
 
 

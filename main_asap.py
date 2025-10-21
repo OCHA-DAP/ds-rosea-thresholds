@@ -37,22 +37,36 @@ def main():
             f"Time period: {summary['date_range']['start']} to {summary['date_range']['end']}"
         )
 
-        print(f"\nAverage monthly population exposure:")
+        print("\nAverage monthly population exposure (crop warnings):")
         for threshold in [1, 2, 3, 4]:
             key = f"avg_pop_warning_{threshold}_plus"
-            if key in summary:
-                print(f"  Warning Group {threshold}+: {summary[key]:,} people")
+            if key in summary.get('crop_warning_stats', {}):
+                pop_val = summary['crop_warning_stats'][key]
+                pct_key = f"avg_pct_warning_{threshold}_plus"
+                pct_val = summary['crop_warning_stats'].get(pct_key, 0)
+                print(f"  Warning Group {threshold}+: {pop_val:,} people "
+                      f"({pct_val:.1f}%)")
 
-        # Show top 5 countries by average Warning Group 2+ exposure
-        print(f"\nTop countries by Warning Group 2+ exposure:")
+        print("\nAverage monthly population exposure (range warnings):")
+        for threshold in [1, 2, 3, 4]:
+            key = f"avg_pop_warning_{threshold}_plus"
+            if key in summary.get('range_warning_stats', {}):
+                pop_val = summary['range_warning_stats'][key]
+                pct_key = f"avg_pct_warning_{threshold}_plus"
+                pct_val = summary['range_warning_stats'].get(pct_key, 0)
+                print(f"  Warning Group {threshold}+: {pop_val:,} people "
+                      f"({pct_val:.1f}%)")
+
+        # Show top 5 countries by average Warning Group 2+ crop exposure
+        print("\nTop countries by Warning Group 2+ crop exposure:")
         country_summary = (
-            monthly_exposure.groupby("country")["pct_warning_2_plus"]
+            monthly_exposure.groupby("country")["crop_pct_warning_2_plus"]
             .mean()
             .sort_values(ascending=False)
         )
         for country, pct in country_summary.head(5).items():
             pop = monthly_exposure[monthly_exposure["country"] == country][
-                "pop_warning_2_plus"
+                "crop_pop_warning_2_plus"
             ].mean()
             print(f"  {country}: {pct:.1f}% ({pop:,.0f} people)")
 
