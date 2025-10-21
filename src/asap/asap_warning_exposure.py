@@ -1,6 +1,6 @@
 """
-Threshold analysis module for calculating population exposure at different warning levels.
-Handles country-level monthly aggregations and threshold-based population calculations.
+ASAP Warning Exposure analysis module for calculating population exposure at different warning levels.
+Handles country-level monthly aggregations and warning-based population exposure calculations.
 """
 
 import pandas as pd
@@ -39,8 +39,8 @@ from .blob_utils import get_azure_connection, execute_blob_query
 logger = logging.getLogger(__name__)
 
 
-class ThresholdAnalyzer:
-    """Class for analyzing population exposure at different warning thresholds."""
+class AsapWarningExposure:
+    """Class for calculating ASAP population exposure at different warning levels."""
 
     def __init__(self, use_random_population: bool = False):
         self.warnings_data: Optional[pd.DataFrame] = None

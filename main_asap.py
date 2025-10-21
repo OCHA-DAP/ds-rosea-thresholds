@@ -5,7 +5,7 @@ Main entry point for ds-rosea-thresholds analysis.
 import logging
 from pathlib import Path
 
-from src.asap.threshold_analyzer import ThresholdAnalyzer
+from src.asap.asap_warning_exposure import AsapWarningExposure
 
 # Configure logging
 logging.basicConfig(
@@ -21,7 +21,7 @@ def main():
     
     try:
         # Initialize threshold analyzer with real population data
-        analyzer = ThresholdAnalyzer(use_random_population=False)
+        analyzer = AsapWarningExposure(use_random_population=False)
         
         # Run complete threshold analysis pipeline
         monthly_exposure = analyzer.run_full_analysis()
