@@ -99,7 +99,7 @@ class AsapWarningExposure:
         logger.info(f"Loading warnings data from local file: {FILTERED_WARNINGS_FILE}")
 
         self.warnings_data = pd.read_csv(FILTERED_WARNINGS_FILE, sep=WARNINGS_SEPARATOR)
-        return self._process_warnings_data()
+        return self._recode_warnings_data()
 
     def _load_warnings_from_blob(self) -> pd.DataFrame:
         """Load warnings data from Azure blob storage."""
@@ -118,13 +118,13 @@ class AsapWarningExposure:
             with get_azure_connection() as conn:
                 result = conn.execute(query).fetchdf()
                 self.warnings_data = result
-                return self._process_warnings_data()
+                return self._recode_warnings_data()
 
         except Exception as e:
             logger.error(f"Failed to load warnings from blob: {e}")
             raise
 
-    def _process_warnings_data(self) -> pd.DataFrame:
+    def _recode_warnings_data(self) -> pd.DataFrame:
         """Common processing for warnings data regardless of source."""
         # Convert date column
         self.warnings_data["date"] = pd.to_datetime(self.warnings_data["date"])
