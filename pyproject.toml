@@ -1,0 +1,57 @@
+[project]
+name = "rosea-thresholds-monitoring"
+version = "0.1.0"
+requires-python = "==3.10.*"
+description = "Pipeline for thresholds for ROSEA Monitoring"
+authors = [{name = "Hannah", email = "hannah.ker@un.org"}] 
+dependencies = [
+    "requests>=2.31.0",
+    "pandas>=2.1.0",
+    "numpy>=1.24.0",
+    "ocha-stratus==0.1.1",
+    "coloredlogs==15.0.1",
+    "python-dotenv",
+    "plotly",
+    "matplotlib",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.1.0",
+    "jupyter-black",
+    "marimo",
+    "pytest>=7.0.0",
+    "pre-commit",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.1.0",
+    "jupyter-black",
+    "marimo",
+    "pytest>=7.0.0",
+    "pre-commit",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py38"
+exclude = ["examples/"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
