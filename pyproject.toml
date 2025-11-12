@@ -36,6 +36,7 @@ dev = [
 [tool.ruff]
 line-length = 88
 target-version = "py38"
+exclude = ["examples/"]
 
 [tool.ruff.lint]
 select = [
