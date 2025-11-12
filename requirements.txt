@@ -13,3 +13,10 @@ ipykernel>=6.25.0
 nbformat>=5.9.0
 nbclient>=0.8.0
 PyYAML>=6.0
+requests>=2.31.0
+ocha-stratus==0.1.1
+coloredlogs==15.0.1
+python-dotenv
+jupyter-black
+marimo
+plotly
