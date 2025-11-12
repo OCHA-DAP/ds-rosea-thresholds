@@ -7,7 +7,6 @@ app = marimo.App(width="medium", app_title="ROSEA IPC Thresholds")
 @app.cell
 def _():
     import marimo as mo
-
     return (mo,)
 
 
@@ -29,7 +28,7 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.center(mo.md("# ROSEA IPC Threshold Exploration"))
+    mo.center(mo.md("# ROSEA Slow Onset Threshold Exploration"))
     return
 
 
@@ -76,6 +75,8 @@ def _():
     import numpy as np
     from plotly.subplots import make_subplots
     import matplotlib.colors as mcolors
+    import zipfile
+    import io
 
     load_dotenv(find_dotenv(usecwd=True))
 
@@ -101,6 +102,7 @@ def _():
     iso3_to_country = {v: k for k, v in iso3s.items()}
     return (
         go,
+        io,
         iso3_to_country,
         iso3s,
         make_subplots,
@@ -111,6 +113,7 @@ def _():
         px,
         requests,
         stratus,
+        zipfile,
     )
 
 
@@ -129,6 +132,7 @@ def _(os, pd, requests):
             params["location_code"] = iso3
         # Check if the request was successful
         response = requests.get(endpoint, params=params)
+
         json_data = response.json()
         # Extract the data list from the JSON
         data_list = json_data.get("data", [])
@@ -204,7 +208,6 @@ def _(os, pd, requests):
             .reset_index()
         )
         return pd.concat([df_all, dff])
-
     return combine_4_plus, get_ipc_from_hapi, get_pop
 
 
@@ -428,9 +431,6 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    # VERY HIGH THRESHOLD
-    # vh_s_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.3, label="Prop. 3+")
-    # vh_s_p4 = mo.ui.number(start=0, stop=1, step=0.01, value=0.05, label="Prop. 4+")
     vh_s_pp4 = mo.ui.number(
         start=0, stop=2000000, step=100000, value=500000, label="Population 4+"
     )
@@ -459,10 +459,6 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    # HIGH THRESHOLD
-    # h_s_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.25, label="Prop. 3+")
-    # h_s_p4 = mo.ui.number(start=0, stop=1, step=0.01, value=0.03, label="Prop. 4+")
-
     h_d_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.25, label="Proportion 3+")
     h_d_d3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.05, label="Increase 3+")
     h_s_pp4 = mo.ui.number(
@@ -519,9 +515,7 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""The table below summarizes some initial proposed thresholds for four levels of alert based on incoming IPC reports. Each alert level is tied to a specific support package. Note that the "high" and "very high" alert levels each have two potential trigger conditions, designed to capture both emergency crises OR rapidly deteriorating conditions. **Note** that we do not evaluate for deteriorating conditions across reports where the population analyzed is significantly different (>10%).  The table below also summarizes some key statistics per alert level based on a historical analysis of IPC data (as shown in the charts below)."""
-    )
+    mo.md(r"""The table below summarizes some initial proposed thresholds for four levels of alert based on incoming IPC reports. Each alert level is tied to a specific support package. Note that the "high" and "very high" alert levels each have two potential trigger conditions, designed to capture both emergency crises OR rapidly deteriorating conditions. **Note** that we do not evaluate for deteriorating conditions across reports where the population analyzed is significantly different (>10%).  The table below also summarizes some key statistics per alert level based on a historical analysis of IPC data (as shown in the charts below).""")
     return
 
 
@@ -684,9 +678,7 @@ def _(df_all_wide, iso3_to_country, pd):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""Use the charts below to investigate past performance of these thresholds and compare against historical occurrences of surge support, flash appeals, and CERF disbursements. As one can see from the charts, the temporal coverage of IPC reporting windows across countries can be inconsistent. Thus, some desired windows of past activation may be missing due to missing IPC data, rather than misconfigured thresholds. A lack of IPC reports for a given period of time may not necessarily indicate a lack of food security concern."""
-    )
+    mo.md(r"""Use the charts below to investigate past performance of these thresholds and compare against historical occurrences of surge support, flash appeals, and CERF disbursements. As one can see from the charts, the temporal coverage of IPC reporting windows across countries can be inconsistent. Thus, some desired windows of past activation may be missing due to missing IPC data, rather than misconfigured thresholds. A lack of IPC reports for a given period of time may not necessarily indicate a lack of food security concern.""")
     return
 
 
@@ -699,8 +691,9 @@ def _(mo):
     )
 
     display_surge = mo.ui.switch(label="Overlay validation points", value=False)
-    mo.hstack([category_multiselect, display_surge])
-    return category_multiselect, display_surge
+    display_asap = mo.ui.switch(label="Overlay ASAP alerts", value=False)
+    mo.hstack([category_multiselect, display_surge, display_asap])
+    return category_multiselect, display_asap, display_surge
 
 
 @app.cell
@@ -784,7 +777,7 @@ def _(iso3s, pd, stratus):
 def _():
     # Formatting information for plots
     level_colors = {
-        "very high": "#e8857d",  # Muted red
+        "very high": "#F2350F",  # Muted red
         "high": "#d19970",  # Muted orange
         "medium": "#6b9ce8",  # Muted teal
         "low": "#b0b0b0",  # Muted grey
@@ -807,19 +800,28 @@ def _():
 
 
 @app.cell
+def _(category_multiselect, stratus):
+    df_asap = stratus.load_csv_from_blob("ds-rosea-thresholds/processed/asap/hotspot_historical_classified.csv")
+    df_asap_sel = df_asap[df_asap.alert_level.isin(category_multiselect.value)]
+    return (df_asap_sel,)
+
+
+@app.cell
 def _(
     category_multiselect,
     cerf_color,
+    df_asap_sel,
     df_cerf,
     df_fa,
     df_gaps,
-    df_summary,
     df_summary_sel,
     df_surge,
+    display_asap,
     display_surge,
     end_date,
     fa_color,
     go,
+    iso3s,
     level_colors,
     pd,
     shape_config,
@@ -830,7 +832,7 @@ def _(
     # Create plot and setup
 
     fig = go.Figure()
-    all_countries = df_summary.country.unique()
+    all_countries = list(iso3s.keys())
 
     # Create position mapping for ALL countries
     country_positions = {country: i for i, country in enumerate(sorted(all_countries))}
@@ -871,6 +873,23 @@ def _(
             line=dict(width=0),
             layer="below",
         )
+
+    # -----------------------------------------
+    # Add asap data
+    if display_asap.value:
+        for _, _row in df_asap_sel.iterrows():
+            y_pos = country_positions[_row["asap0_name"]]
+            fig.add_shape(
+                type="rect",
+                x0=_row["From"],
+                x1=_row["To"],
+                y0=y_pos - 0.075,
+                y1=y_pos + 0.075,
+                fillcolor=level_colors[_row["alert_level"]],
+                opacity=0.8,
+                line=dict(width=0),
+                layer="below",
+            )
 
     # -----------------------------------------
     # Add validation data
@@ -958,7 +977,7 @@ def _(
 
     # -----------------------------------------
     # Add activation dates
-    if not display_surge.value:
+    if not (display_surge.value or display_asap.value):
         for _, _row in df_summary_sel.iterrows():
             config = shape_config.get(_row["cat_2"], shape_config[None])
 
@@ -1133,9 +1152,7 @@ def _(
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""We can drill down even further into specific countries by looking at the plot below. Here, we can get a closer look at how well various alert levels correlate with the timing of past surge support and funding disbursements."""
-    )
+    mo.md(r"""We can drill down even further into specific countries by looking at the plot below. Here, we can get a closer look at how well various alert levels correlate with the timing of past surge support and funding disbursements.""")
     return
 
 
@@ -1179,10 +1196,26 @@ def _(df_levels_sel, iso3_dropdown, mo):
 
 
 @app.cell
+def _(io, iso3_dropdown, iso3s, pd, requests, zipfile):
+    # TODO -- refactor this out to a function
+    url = "https://agricultural-production-hotspots.ec.europa.eu/files/hotspots_ts.zip"
+    response = requests.get(url)
+    df_hotspots = pd.read_csv(zipfile.ZipFile(io.BytesIO(response.content)).open('hotspots_ts.csv'), sep=';')
+    df_hotspots = df_hotspots[df_hotspots["asap0_name"].isin(list(iso3s.keys()))]
+    df_hotspots = df_hotspots.sort_values(['asap0_name', 'date']).reset_index(drop=True)
+    df_hotspots['date'] = pd.to_datetime(df_hotspots['date'])
+    df_hotspots_ = df_hotspots[df_hotspots.asap0_name == iso3_dropdown.selected_key]
+
+    df_hotspots_pivot = df_hotspots_.pivot(index='asap0_name', columns='date', values='hs_code')
+    return (df_hotspots_pivot,)
+
+
+@app.cell
 def _(
     cerf_color,
     df_cerf_sel,
     df_fa_sel,
+    df_hotspots_pivot,
     df_levels_sel,
     df_surge_sel,
     fa_color,
@@ -1209,11 +1242,11 @@ def _(
     # Create plot
     _fig = go.Figure()
     _fig = make_subplots(
-        rows=2,
+        rows=3,
         cols=1,
         shared_xaxes=True,
         vertical_spacing=0.06,
-        row_heights=[0.85, 0.15],
+        row_heights=[0.75, 0.15, 0.1],
     )
 
     # -----------------------------------------
@@ -1399,6 +1432,34 @@ def _(
         col=1,
     )
 
+    _fig.update_xaxes(range=['2016-01-01', None]) 
+
+    # ----------------------------------------- 
+    # Add heatmap trace
+    _fig.add_trace(
+        go.Heatmap(
+            z=df_hotspots_pivot.values,
+            x=df_hotspots_pivot.columns,
+            y=df_hotspots_pivot.index,
+            colorscale=[[0, '#b0b0b0'], [0.5, 'red'], [1, 'darkred']],
+            zmin=0,
+            zmax=2,
+            showscale=False,
+        ),
+        row=3,
+        col=1
+    )
+
+    # Update y-axis for the heatmap row
+    _fig.update_yaxes(
+        showticklabels=True,
+        tickvals=[0],
+        ticktext=['Hotspot Status'],
+        showgrid=False,
+        row=3,
+        col=1
+    )
+
     _fig.update_yaxes(visible=False, range=[0.65, 1.05], row=2, col=1)
 
     _fig
@@ -1419,6 +1480,7 @@ def _(df_summary):
             "From",
             "To",
             "category",
+            "cat_1",
             "ipc_type",
             "population_analyzed",
             "approx_prop_analyzed",
