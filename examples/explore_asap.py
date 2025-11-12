@@ -89,7 +89,7 @@ def _():
 
 @app.cell
 def _(io, mo, pd, requests, stratus, zipfile):
-    @mo.persistent_cache
+    @mo.cache
     def get_asap_hotspots(filter_iso3s=None):
         url = "https://agricultural-production-hotspots.ec.europa.eu/files/hotspots_ts.zip"
         response = requests.get(url)
@@ -99,7 +99,7 @@ def _(io, mo, pd, requests, stratus, zipfile):
         df = df.sort_values(['asap0_name', 'date']).reset_index(drop=True)
         return df
 
-    @mo.persistent_cache
+    @mo.cache
     def get_asap_warnings_from_blob():
         df_warnings = stratus.load_csv_from_blob("ds-rosea-thresholds/processed/asap/warnings_filtered.csv", sep=";")
         remap_values = {
@@ -110,7 +110,7 @@ def _(io, mo, pd, requests, stratus, zipfile):
             9: 4,  # Warning level 4
             98: -1, 99: -1  # Out of season
         }
-    
+
         df_warnings["warning_val_crop"] = df_warnings["w_crop"].map(remap_values)
         df_warnings["warning_val_range"] = df_warnings["w_range"].map(remap_values)
         return df_warnings
@@ -125,6 +125,12 @@ def _(get_asap_hotspots, get_asap_warnings_from_blob, iso3s):
 
 
 @app.cell
+def _(mo):
+    mo.md(r"""## 1. Hotspot overview per country""")
+    return
+
+
+@app.cell
 def _(color_map, df_hotspots, px):
     df_bar_plot = df_hotspots.groupby(['asap0_name', 'hs_name']).size().reset_index(name='count')
     _fig = px.bar(df_bar_plot, 
@@ -135,6 +141,18 @@ def _(color_map, df_hotspots, px):
                  category_orders={'hs_name': ['Major hotspot', 'Hotspot', 'No hotspot']},
                  title='Countries by Hotspot Status')
     _fig.update_layout(xaxis_tickangle=-45, template="simple_white")
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ## 2. Hotspots and Warnings comparison
+
+    ** Note: We're using a cached version of the Warnings!
+    """
+    )
     return
 
 
@@ -276,6 +294,12 @@ def _(
 
 
 @app.cell
+def _(mo):
+    mo.md(r"""## 3. Validate define alert levels""")
+    return
+
+
+@app.cell
 def _(df_hotspots):
     df_hotspots['consecutive_count'] = df_hotspots.groupby(['asap0_id', (df_hotspots['hs_code'] != df_hotspots['hs_code'].shift()).cumsum()])['hs_code'].cumcount()
     return
@@ -410,7 +434,7 @@ def _(mo):
 @app.cell
 def _(category_multiselect, df_hotspots, pd):
     # Remove rows that didn't alert
-    df_summary_sel = df_hotspots[df_hotspots.alert_level.notnull()]
+    df_summary_sel = df_hotspots[df_hotspots.alert_level.notnull()].copy()
 
     # Get to and from dates
     df_summary_sel['date'] = pd.to_datetime(df_summary_sel['date'])
@@ -418,8 +442,9 @@ def _(category_multiselect, df_hotspots, pd):
     df_summary_sel['To'] = df_summary_sel.groupby('asap0_id')['date'].shift(-1) - pd.Timedelta(days=1)
     df_summary_sel['To'] = df_summary_sel['To'].fillna(pd.to_datetime(df_hotspots.date.max()))
 
+    df_save = df_summary_sel
     df_summary_sel = df_summary_sel[df_summary_sel.alert_level.isin(category_multiselect.value)]
-    return (df_summary_sel,)
+    return df_save, df_summary_sel
 
 
 @app.cell
@@ -450,10 +475,6 @@ def _(
     # Create position mapping for ALL countries
     country_positions = {country: i for i, country in enumerate(sorted(all_countries))}
     countries = sorted(all_countries)  # Use this for y-axis labels
-
-    # Convert dates with proper format specification
-    df_summary_sel["From"] = pd.to_datetime(df_summary_sel["From"], format="%b %d, %Y")
-    df_summary_sel["To"] = pd.to_datetime(df_summary_sel["To"], format="%b %d, %Y")
 
     # -----------------------------------------
     # Add rectangles for duration of all hotspots in the classification
@@ -669,6 +690,24 @@ def _(
     )
 
     fig
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""## 4. View output results""")
+    return
+
+
+@app.cell
+def _(df_save):
+    df_save
+    return
+
+
+@app.cell
+def _(df_save, stratus):
+    stratus.upload_csv_to_blob(df_save, blob_name="ds-rosea-thresholds/processed/asap/hotspot_historical_classified.csv")
     return
 
 

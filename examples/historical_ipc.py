@@ -28,7 +28,7 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.center(mo.md("# ROSEA IPC Threshold Exploration"))
+    mo.center(mo.md("# ROSEA Slow Onset Threshold Exploration"))
     return
 
 
@@ -132,6 +132,7 @@ def _(os, pd, requests):
             params["location_code"] = iso3
         # Check if the request was successful
         response = requests.get(endpoint, params=params)
+
         json_data = response.json()
         # Extract the data list from the JSON
         data_list = json_data.get("data", [])
@@ -430,9 +431,6 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    # VERY HIGH THRESHOLD
-    # vh_s_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.3, label="Prop. 3+")
-    # vh_s_p4 = mo.ui.number(start=0, stop=1, step=0.01, value=0.05, label="Prop. 4+")
     vh_s_pp4 = mo.ui.number(
         start=0, stop=2000000, step=100000, value=500000, label="Population 4+"
     )
@@ -461,10 +459,6 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    # HIGH THRESHOLD
-    # h_s_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.25, label="Prop. 3+")
-    # h_s_p4 = mo.ui.number(start=0, stop=1, step=0.01, value=0.03, label="Prop. 4+")
-
     h_d_p3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.25, label="Proportion 3+")
     h_d_d3 = mo.ui.number(start=0, stop=1, step=0.01, value=0.05, label="Increase 3+")
     h_s_pp4 = mo.ui.number(
@@ -697,8 +691,9 @@ def _(mo):
     )
 
     display_surge = mo.ui.switch(label="Overlay validation points", value=False)
-    mo.hstack([category_multiselect, display_surge])
-    return category_multiselect, display_surge
+    display_asap = mo.ui.switch(label="Overlay ASAP alerts", value=False)
+    mo.hstack([category_multiselect, display_surge, display_asap])
+    return category_multiselect, display_asap, display_surge
 
 
 @app.cell
@@ -782,7 +777,7 @@ def _(iso3s, pd, stratus):
 def _():
     # Formatting information for plots
     level_colors = {
-        "very high": "#e8857d",  # Muted red
+        "very high": "#F2350F",  # Muted red
         "high": "#d19970",  # Muted orange
         "medium": "#6b9ce8",  # Muted teal
         "low": "#b0b0b0",  # Muted grey
@@ -805,19 +800,28 @@ def _():
 
 
 @app.cell
+def _(category_multiselect, stratus):
+    df_asap = stratus.load_csv_from_blob("ds-rosea-thresholds/processed/asap/hotspot_historical_classified.csv")
+    df_asap_sel = df_asap[df_asap.alert_level.isin(category_multiselect.value)]
+    return (df_asap_sel,)
+
+
+@app.cell
 def _(
     category_multiselect,
     cerf_color,
+    df_asap_sel,
     df_cerf,
     df_fa,
     df_gaps,
-    df_summary,
     df_summary_sel,
     df_surge,
+    display_asap,
     display_surge,
     end_date,
     fa_color,
     go,
+    iso3s,
     level_colors,
     pd,
     shape_config,
@@ -828,7 +832,7 @@ def _(
     # Create plot and setup
 
     fig = go.Figure()
-    all_countries = df_summary.country.unique()
+    all_countries = list(iso3s.keys())
 
     # Create position mapping for ALL countries
     country_positions = {country: i for i, country in enumerate(sorted(all_countries))}
@@ -869,6 +873,23 @@ def _(
             line=dict(width=0),
             layer="below",
         )
+
+    # -----------------------------------------
+    # Add asap data
+    if display_asap.value:
+        for _, _row in df_asap_sel.iterrows():
+            y_pos = country_positions[_row["asap0_name"]]
+            fig.add_shape(
+                type="rect",
+                x0=_row["From"],
+                x1=_row["To"],
+                y0=y_pos - 0.075,
+                y1=y_pos + 0.075,
+                fillcolor=level_colors[_row["alert_level"]],
+                opacity=0.8,
+                line=dict(width=0),
+                layer="below",
+            )
 
     # -----------------------------------------
     # Add validation data
@@ -956,7 +977,7 @@ def _(
 
     # -----------------------------------------
     # Add activation dates
-    if not display_surge.value:
+    if not (display_surge.value or display_asap.value):
         for _, _row in df_summary_sel.iterrows():
             config = shape_config.get(_row["cat_2"], shape_config[None])
 
@@ -1176,6 +1197,7 @@ def _(df_levels_sel, iso3_dropdown, mo):
 
 @app.cell
 def _(io, iso3_dropdown, iso3s, pd, requests, zipfile):
+    # TODO -- refactor this out to a function
     url = "https://agricultural-production-hotspots.ec.europa.eu/files/hotspots_ts.zip"
     response = requests.get(url)
     df_hotspots = pd.read_csv(zipfile.ZipFile(io.BytesIO(response.content)).open('hotspots_ts.csv'), sep=';')
@@ -1458,6 +1480,7 @@ def _(df_summary):
             "From",
             "To",
             "category",
+            "cat_1",
             "ipc_type",
             "population_analyzed",
             "approx_prop_analyzed",
