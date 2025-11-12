@@ -1,0 +1,845 @@
+# JRC ASAP + WorldPop
+
+---
+jupyter: 
+  kernelspec:
+    name: "ds-rosea-thresholds"
+    language: "python" 
+    display_name: "ds-rosea-thresholds"
+---
+
+This notebook analyzes historical population exposure to agricultural warnings across 14 countries in East & Southern Africa. Here, as our "real-time" monitoring example, we use July 2025, but this same analysis would need to be done per month to set thresholds based on historical exposure to different degrees of ASAP severity classifications.
+
+The analysis combines ASAP warning data with WorldPop 2020 population estimates at admin2 level to calculate monthly country-level exposure metrics.
+
+**New in this version**: The analysis now covers both **cropland** (`w_crop_gr`) and **rangeland** (`w_range_gr`) warning indicators, allowing for comprehensive comparison of agricultural stress across different land use types. The visualizations compare crop vs rangeland exposure patterns, showing how these different warning systems affect populations differently.
+
+
+```{python}
+import sys
+import os
+
+# Import required libraries
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from dotenv import load_dotenv
+
+load_dotenv()
+# Import our ASAP analysis modules - what is happening
+from src.asap.azure_config import get_monthly_exposure_url, USE_BLOB_STORAGE
+from src.asap.blob_utils import get_azure_connection
+
+# Set plotting style
+plt.style.use("seaborn-v0_8")
+sns.set_palette("viridis")
+
+# Configure matplotlib for better output in Quarto
+plt.rcParams["figure.facecolor"] = "white"
+plt.rcParams["axes.facecolor"] = "white"
+plt.rcParams["savefig.facecolor"] = "white"
+plt.rcParams["savefig.bbox"] = "tight"
+plt.rcParams["figure.dpi"] = 150
+plt.rcParams["savefig.dpi"] = 150
+
+# Enable matplotlib integration with IPython/Jupyter
+from IPython import get_ipython
+
+if get_ipython() is not None:
+    get_ipython().run_line_magic("matplotlib", "inline")
+```
+
+```{python}
+
+# Load the monthly exposure analysis results from blob storage
+if USE_BLOB_STORAGE:
+    print("Loading monthly exposure data from Azure Blob Storage...")
+    
+    # Get the blob URL for monthly exposure results
+    exposure_url = get_monthly_exposure_url()
+    print(f"Data source: {exposure_url}")
+    
+    # Use DuckDB to read directly from blob
+    with get_azure_connection() as conn:
+        query = f"""
+        SELECT * FROM '{exposure_url}'
+        ORDER BY country, year_month
+        """
+        
+        exposure_df = conn.execute(query).fetchdf()
+        
+else:
+    # Fallback to local file if blob storage is disabled
+    from src.asap.config import MONTHLY_EXPOSURE_FILE
+    exposure_df = pd.read_csv(MONTHLY_EXPOSURE_FILE)
+
+
+
+# exposure_df.head()
+```
+
+```{python}
+# | eval: false
+# Display basic info about the dataset
+
+print(f"Dataset shape: {exposure_df.shape}")
+print(
+    f"Date range: {exposure_df['year_month'].min()} to {exposure_df['year_month'].max()}"
+)
+print(f"Countries: {exposure_df['country'].nunique()}")
+print(f"Country-months: {len(exposure_df):,}")
+
+# Summary statistics
+print("=== DATASET SUMMARY ===")
+print(f"Total country-months: {len(exposure_df):,}")
+print(f"Countries covered: {sorted(exposure_df['country'].unique())}")
+print(
+    f"Average total population per country-month: {exposure_df['total_population'].mean():,.0f}"
+)
+
+# Check for missing data
+print(f"\nMissing data check:")
+print(exposure_df.isnull().sum())
+
+```
+
+## Data Overview
+
+```{python}
+# data snapshot - show most recent month for all countries
+most_recent_month = exposure_df["year_month"].max()
+recent_data = exposure_df[exposure_df["year_month"] == most_recent_month].sort_values(
+    "country"
+)
+
+# data snapshot - show most recent month for all countries
+most_recent_month = exposure_df["year_month"].max()
+recent_data = exposure_df[exposure_df["year_month"] == most_recent_month].sort_values(
+    "country"
+)
+
+print(f"Data snapshot - Most recent month: {most_recent_month}")
+
+# Create a formatted version for display - showing both crop and range
+display_data = recent_data[
+    [
+        "country",
+        "year_month",
+        "total_population",
+        "crop_pop_warning_1_plus",
+        "crop_pop_warning_2_plus", 
+        "crop_pop_warning_3_plus",
+        "crop_pop_warning_4_plus",
+        "range_pop_warning_1_plus",
+        "range_pop_warning_2_plus",
+        "range_pop_warning_3_plus", 
+        "range_pop_warning_4_plus",
+        "crop_pct_warning_1_plus",
+        "crop_pct_warning_2_plus",
+        "crop_pct_warning_3_plus",
+        "crop_pct_warning_4_plus",
+        "range_pct_warning_1_plus",
+        "range_pct_warning_2_plus",
+        "range_pct_warning_3_plus",
+        "range_pct_warning_4_plus",
+    ]
+].copy()
+
+# Format population columns with commas
+pop_columns = [
+    col
+    for col in display_data.columns
+    if col.startswith("crop_pop_") or col.startswith("range_pop_") or col == "total_population"
+]
+for col in pop_columns:
+    display_data[col] = display_data[col].apply(lambda x: f"{x:,.0f}")
+
+# Format percentage columns with % symbol and 2 decimal places
+pct_columns = [col for col in display_data.columns if col.startswith("crop_pct_") or col.startswith("range_pct_")]
+for col in pct_columns:
+    display_data[col] = display_data[col].apply(lambda x: f"{x:.2f}%")
+
+display(display_data)
+```
+
+## Warning Level Distribution
+
+```{python}
+#| label: fig-warning-distribution
+#| fig-cap: "Population exposure at different warning thresholds"
+#| fig-width: 15
+#| fig-height: 6
+
+# Calculate average populations at different warning thresholds for both crop and range
+crop_warning_cols = [col for col in exposure_df.columns if col.startswith('crop_pop_warning_') and col.endswith('_plus')]
+range_warning_cols = [col for col in exposure_df.columns if col.startswith('range_pop_warning_') and col.endswith('_plus')]
+
+crop_avg_warnings = {}
+range_avg_warnings = {}
+
+for col in crop_warning_cols:
+    threshold = col.split('_')[3]  # Extract threshold number
+    avg_pop = exposure_df[col].mean()
+    crop_avg_warnings[f"Crop Warning {threshold}+"] = avg_pop
+
+for col in range_warning_cols:
+    threshold = col.split('_')[3]  # Extract threshold number
+    avg_pop = exposure_df[col].mean()
+    range_avg_warnings[f"Range Warning {threshold}+"] = avg_pop
+
+# Create visualization comparing crop vs range
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+
+# Comparison bar chart
+thresholds = ['1+', '2+', '3+', '4+']
+crop_pops = [crop_avg_warnings[f"Crop Warning {t}"] for t in thresholds]
+range_pops = [range_avg_warnings[f"Range Warning {t}"] for t in thresholds]
+
+x = np.arange(len(thresholds))
+width = 0.35
+
+bars1 = ax1.bar(x - width/2, crop_pops, width, label='Cropland', color='lightgreen', edgecolor='darkgreen', alpha=0.7)
+bars2 = ax1.bar(x + width/2, range_pops, width, label='Rangeland', color='sandybrown', edgecolor='saddlebrown', alpha=0.7)
+
+ax1.set_title('Average Population at Warning Thresholds\nCropland vs Rangeland', fontsize=14, fontweight='bold')
+ax1.set_ylabel('Average Population', fontsize=12)
+ax1.set_xlabel('Warning Threshold', fontsize=12)
+ax1.set_xticks(x)
+ax1.set_xticklabels([f'Warning {t}' for t in thresholds])
+ax1.legend()
+
+# Format y-axis to show millions
+ax1.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{x/1e6:.1f}M'))
+
+# Add value labels on bars
+for bars in [bars1, bars2]:
+    for bar in bars:
+        height = bar.get_height()
+        ax1.text(bar.get_x() + bar.get_width()/2., height + max(crop_pops + range_pops)*0.01,
+                f'{height/1e6:.1f}M', ha='center', va='bottom', fontsize=9)
+
+# Simple box plot comparing crop vs range for Warning 1+
+crop_1_plus_data = exposure_df[crop_warning_cols[0]].values  # First column is 1+
+range_1_plus_data = exposure_df[range_warning_cols[0]].values  # First column is 1+
+
+# Create simple box plot data
+box_plot_data = []
+box_plot_data.extend([('Crop', val) for val in crop_1_plus_data])
+box_plot_data.extend([('Range', val) for val in range_1_plus_data])
+
+box_df = pd.DataFrame(box_plot_data, columns=['Type', 'Population'])
+box_df.boxplot(column='Population', by='Type', ax=ax2)
+ax2.set_title('Population Distribution: Crop vs Range\n(Warning 1+ All Country-Months)', fontsize=14, fontweight='bold')
+ax2.set_ylabel('Population', fontsize=12)
+ax2.set_xlabel('Warning Type', fontsize=12)
+
+# Format y-axis to show millions
+ax2.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{x/1e6:.1f}M'))
+
+plt.suptitle('')  # Remove automatic title
+plt.tight_layout()
+plt.show()
+```
+
+## Temporal Trends
+
+```{python}
+#| label: fig-temporal-trends
+#| fig-cap: "Temporal trends in population exposure across warning thresholds"
+#| fig-width: 15
+#| fig-height: 10
+
+# Convert year_month to datetime for better plotting
+exposure_df['date'] = pd.to_datetime(exposure_df['year_month'])
+
+# Calculate regional totals by month for both crop and range
+monthly_totals = exposure_df.groupby('date')[crop_warning_cols + range_warning_cols].sum().reset_index()
+
+# Create time series plot comparing crop vs range
+fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+fig.suptitle('Regional Population Exposure Trends: Cropland vs Rangeland\nTotal population across all ROSEA countries by warning threshold', 
+             fontsize=16, fontweight='bold')
+
+# Use consistent colors: one green for cropland, one brown for rangeland
+crop_color = '#228B22'  # Consistent green for all cropland data
+range_color = '#8B4513'  # Consistent brown for all rangeland data
+titles = ['Warning 1+ Population', 'Warning 2+ Population', 
+          'Warning 3+ Population', 'Warning 4+ Population']
+
+for i in range(4):
+    row = i // 2
+    col_num = i % 2
+    ax = axes[row, col_num]
+    
+    crop_col = crop_warning_cols[i]
+    range_col = range_warning_cols[i]
+    
+    # Plot crop and range lines using consistent colors
+    ax.plot(monthly_totals['date'], monthly_totals[crop_col]/1e6, 
+            color=crop_color, linewidth=2.5, alpha=0.9, label='Cropland')
+    ax.plot(monthly_totals['date'], monthly_totals[range_col]/1e6, 
+            color=range_color, linewidth=2.5, alpha=0.9, label='Rangeland', linestyle='--')
+    
+    ax.set_title(titles[i], fontsize=12, fontweight='bold')
+    ax.set_ylabel('Population (Millions)')
+    ax.grid(True, alpha=0.3)
+    ax.tick_params(axis='x', rotation=45)
+    ax.legend(loc='upper left')
+
+plt.tight_layout()
+plt.show()
+```
+
+## Country-Level Analysis
+
+```{python}
+# Calculate country averages for both crop and range
+agg_dict = {'total_population': 'mean'}
+
+# Add crop columns
+for col in crop_warning_cols + [col.replace('pop_warning', 'pct_warning') for col in crop_warning_cols]:
+    if col in exposure_df.columns:
+        agg_dict[col] = 'mean'
+
+# Add range columns  
+for col in range_warning_cols + [col.replace('pop_warning', 'pct_warning') for col in range_warning_cols]:
+    if col in exposure_df.columns:
+        agg_dict[col] = 'mean'
+
+country_summary = exposure_df.groupby('country').agg(agg_dict).round(0)
+
+# Sort by total population
+country_summary = country_summary.sort_values('total_population', ascending=False)
+
+print("=== AVERAGE POPULATION EXPOSURE BY COUNTRY ===")
+print("(Average across all months in dataset)")
+display(country_summary)
+```
+
+## Geographic Distribution
+
+```{python}
+#| label: fig-country-heatmap
+#| fig-cap: "Geographic distribution of population exposure by country"
+#| fig-width: 10
+#| fig-height: 8
+
+# Create separate heatmaps for crop and range warning percentages
+crop_pct_cols = [col for col in exposure_df.columns if col.startswith('crop_pct_warning_') and col.endswith('_plus')]
+range_pct_cols = [col for col in exposure_df.columns if col.startswith('range_pct_warning_') and col.endswith('_plus')]
+
+# Calculate country averages for percentages
+crop_country_pct = exposure_df.groupby('country')[crop_pct_cols].mean()
+range_country_pct = exposure_df.groupby('country')[range_pct_cols].mean()
+
+# Rename columns for better display
+crop_country_pct.columns = [f"Crop Warning {col.split('_')[3]}+" for col in crop_country_pct.columns]
+range_country_pct.columns = [f"Range Warning {col.split('_')[3]}+" for col in range_country_pct.columns]
+
+# Create side-by-side heatmaps
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
+
+# Crop heatmap
+sns.heatmap(
+    crop_country_pct, 
+    annot=True, 
+    fmt='.1f', 
+    cmap='Greens', 
+    cbar_kws={'label': 'Avg % Pop Exposed'},
+    linewidths=0.5,
+    ax=ax1
+)
+ax1.set_title('Cropland Warning Exposure\nby Country', fontsize=14, fontweight='bold')
+ax1.set_xlabel('Crop Warning Threshold', fontsize=12)
+ax1.set_ylabel('Country', fontsize=12)
+
+# Range heatmap
+sns.heatmap(
+    range_country_pct, 
+    annot=True, 
+    fmt='.1f', 
+    cmap='Oranges', 
+    cbar_kws={'label': 'Avg % Pop Exposed'},
+    linewidths=0.5,
+    ax=ax2
+)
+ax2.set_title('Rangeland Warning Exposure\nby Country', fontsize=14, fontweight='bold')
+ax2.set_xlabel('Range Warning Threshold', fontsize=12)
+ax2.set_ylabel('')  # Remove y-label for cleaner look
+ax2.set_yticklabels([])  # Remove y-tick labels on second plot
+
+fig.suptitle('Average Population Exposure Percentages by Country\nCropland vs Rangeland Warning Thresholds', 
+          fontsize=16, fontweight='bold', y=1.02)
+
+plt.tight_layout()
+plt.show()
+```
+
+## Seasonal Patterns
+
+```{python}
+#| label: fig-seasonal-patterns
+#| fig-cap: "Seasonal patterns in population exposure across warning thresholds"
+#| fig-width: 12
+#| fig-height: 6
+
+# Extract month from date for seasonal analysis
+exposure_df['month'] = exposure_df['date'].dt.month
+exposure_df['month_name'] = exposure_df['date'].dt.strftime('%b')
+
+# Calculate monthly averages across all years for both crop and range
+seasonal_pattern = exposure_df.groupby(['month', 'month_name'])[crop_warning_cols + range_warning_cols].mean().reset_index()
+
+# Create seasonal visualization comparing crop vs range
+fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+fig.suptitle('Seasonal Patterns: Cropland vs Rangeland Warning Exposure\n(Average across all countries and years)', 
+             fontsize=16, fontweight='bold')
+
+month_order = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+               'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+for i in range(4):
+    row = i // 2
+    col_num = i % 2
+    ax = axes[row, col_num]
+    
+    crop_col = crop_warning_cols[i]
+    range_col = range_warning_cols[i]
+    threshold = f'{i+1}+'
+    
+    ax.plot(seasonal_pattern['month'], seasonal_pattern[crop_col]/1e6, 
+            marker='o', linewidth=2.5, label=f'Cropland Warning {threshold}',
+            color=crop_color, markersize=6)
+    ax.plot(seasonal_pattern['month'], seasonal_pattern[range_col]/1e6, 
+            marker='s', linewidth=2.5, label=f'Rangeland Warning {threshold}',
+            color=range_color, markersize=6, linestyle='--')
+    
+    ax.set_title(f'Warning {threshold} Seasonal Pattern', fontsize=12, fontweight='bold')
+    ax.set_xlabel('Month', fontsize=10)
+    ax.set_ylabel('Average Population (Millions)', fontsize=10)
+    ax.set_xticks(range(1, 13))
+    ax.set_xticklabels(month_order, fontsize=9)
+    ax.legend(loc='upper right', fontsize=9)
+    ax.grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+```
+
+## Key Findings
+
+```{python}
+# Generate summary statistics
+total_months = len(exposure_df)
+total_countries = exposure_df["country"].nunique()
+date_range = f"{exposure_df['year_month'].min()} to {exposure_df['year_month'].max()}"
+
+# Calculate averages for both crop and range
+crop_avg_1plus = exposure_df["crop_pop_warning_1_plus"].mean()
+crop_avg_2plus = exposure_df["crop_pop_warning_2_plus"].mean()
+crop_avg_3plus = exposure_df["crop_pop_warning_3_plus"].mean()
+crop_avg_4plus = exposure_df["crop_pop_warning_4_plus"].mean()
+
+range_avg_1plus = exposure_df["range_pop_warning_1_plus"].mean()
+range_avg_2plus = exposure_df["range_pop_warning_2_plus"].mean()
+range_avg_3plus = exposure_df["range_pop_warning_3_plus"].mean()
+range_avg_4plus = exposure_df["range_pop_warning_4_plus"].mean()
+
+print("=== KEY FINDINGS ===")
+print(
+    f"📊 Dataset Coverage: {total_countries} countries, {total_months:,} country-months ({date_range})"
+)
+print(f"🌾 Average Regional Cropland Warning Exposure:")
+print(f"   • Warning Level 1+: {crop_avg_1plus:,.0f} people ({crop_avg_1plus/1e6:.1f}M)")
+print(f"   • Warning Level 2+: {crop_avg_2plus:,.0f} people ({crop_avg_2plus/1e6:.1f}M)")
+print(f"   • Warning Level 3+: {crop_avg_3plus:,.0f} people ({crop_avg_3plus/1e6:.1f}M)")
+print(f"   • Warning Level 4+: {crop_avg_4plus:,.0f} people ({crop_avg_4plus/1e6:.1f}M)")
+
+print(f"\n🌱 Average Regional Rangeland Warning Exposure:")
+print(f"   • Warning Level 1+: {range_avg_1plus:,.0f} people ({range_avg_1plus/1e6:.1f}M)")
+print(f"   • Warning Level 2+: {range_avg_2plus:,.0f} people ({range_avg_2plus/1e6:.1f}M)")
+print(f"   • Warning Level 3+: {range_avg_3plus:,.0f} people ({range_avg_3plus/1e6:.1f}M)")
+print(f"   • Warning Level 4+: {range_avg_4plus:,.0f} people ({range_avg_4plus/1e6:.1f}M)")
+
+# Most exposed countries by warning level (crop vs range)
+crop_most_exposed_1 = country_summary.nlargest(3, "crop_pct_warning_1_plus").index.tolist()
+crop_most_exposed_2 = country_summary.nlargest(3, "crop_pct_warning_2_plus").index.tolist()  
+crop_most_exposed_3 = country_summary.nlargest(3, "crop_pct_warning_3_plus").index.tolist()
+crop_most_exposed_4 = country_summary.nlargest(3, "crop_pct_warning_4_plus").index.tolist()
+
+range_most_exposed_1 = country_summary.nlargest(3, "range_pct_warning_1_plus").index.tolist()
+range_most_exposed_2 = country_summary.nlargest(3, "range_pct_warning_2_plus").index.tolist()
+range_most_exposed_3 = country_summary.nlargest(3, "range_pct_warning_3_plus").index.tolist()
+range_most_exposed_4 = country_summary.nlargest(3, "range_pct_warning_4_plus").index.tolist()
+
+print(f"\n🌾 CROPLAND - Highest Warning Exposure:")
+print(f"🟢 Highest Warning 1+ Exposure: {', '.join(crop_most_exposed_1)}")
+print(f"🟡 Highest Warning 2+ Exposure: {', '.join(crop_most_exposed_2)}")
+print(f"🟠 Highest Warning 3+ Exposure: {', '.join(crop_most_exposed_3)}")
+print(f"🔴 Highest Warning 4+ Exposure: {', '.join(crop_most_exposed_4)}")
+
+print(f"\n🌱 RANGELAND - Highest Warning Exposure:")
+print(f"🟢 Highest Warning 1+ Exposure: {', '.join(range_most_exposed_1)}")
+print(f"🟡 Highest Warning 2+ Exposure: {', '.join(range_most_exposed_2)}")
+print(f"🟠 Highest Warning 3+ Exposure: {', '.join(range_most_exposed_3)}")
+print(f"🔴 Highest Warning 4+ Exposure: {', '.join(range_most_exposed_4)}")
+
+# Peak exposure months for both types
+crop_peak_month = seasonal_pattern.loc[
+    seasonal_pattern["crop_pop_warning_1_plus"].idxmax(), "month_name"
+]
+crop_low_month = seasonal_pattern.loc[
+    seasonal_pattern["crop_pop_warning_1_plus"].idxmin(), "month_name"
+]
+range_peak_month = seasonal_pattern.loc[
+    seasonal_pattern["range_pop_warning_1_plus"].idxmax(), "month_name"
+]
+range_low_month = seasonal_pattern.loc[
+    seasonal_pattern["range_pop_warning_1_plus"].idxmin(), "month_name"
+]
+
+print(f"\n📅 Seasonal Patterns:")
+print(f"   • Cropland - Peak: {crop_peak_month}, Lowest: {crop_low_month}")
+print(f"   • Rangeland - Peak: {range_peak_month}, Lowest: {range_low_month}")
+
+# Comparison insights
+crop_vs_range_1plus = (range_avg_1plus / crop_avg_1plus - 1) * 100
+crop_vs_range_3plus = (range_avg_3plus / crop_avg_3plus - 1) * 100
+
+print(f"\n📈 Key Insights:")
+print(f"   • Rangeland warnings affect {crop_vs_range_1plus:+.0f}% more people than cropland (Warning 1+)")
+print(f"   • Rangeland warnings affect {crop_vs_range_3plus:+.0f}% more people than cropland (Warning 3+)")
+
+# Check if peak months are actually different
+if crop_peak_month != range_peak_month or crop_low_month != range_low_month:
+    print(f"   • Cropland and rangeland show different seasonal patterns with distinct peak/low months")
+else:
+    print(f"   • Both warning types show similar seasonal patterns with the same peak and low months")
+```
+
+
+## Regional Analysis: July Cropland Warning 3+ Trends
+
+```{python}
+# Define regional groupings according to geographic classification
+eastern_africa = ['Burundi', 'Comoros', 'Djibouti', 'Kenya', 'Malawi', 
+                 'Rwanda', 'Uganda', 'Tanzania']
+
+southern_africa = ['Angola', 'Eswatini', 'Lesotho', 'Madagascar', 'Namibia', 
+                  'Zambia', 'Zimbabwe']
+
+# Filter for July data only (peak season analysis)
+july_data = exposure_df[exposure_df['month'] == 7].copy()
+
+# Extract year from date for plotting
+july_data['year'] = july_data['date'].dt.year
+
+print(f"July data points: {len(july_data)}")
+print(f"Available countries: {sorted(july_data['country'].unique())}")
+```
+
+```{python}
+# Create brilliant two-panel regional comparison
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 12))
+
+# Define color palettes for each region
+eastern_colors = plt.cm.tab10(np.linspace(0, 1, len(eastern_africa)))
+southern_colors = plt.cm.Set3(np.linspace(0, 1, len(southern_africa)))
+
+# Plot Eastern Africa
+ax = ax1
+region_data = july_data[july_data['country'].isin(eastern_africa)].copy()
+
+for i, country in enumerate(eastern_africa):
+    if country in region_data['country'].values:
+        country_data = region_data[region_data['country'] == country].sort_values('year')
+        pop_millions = country_data['crop_pop_warning_3_plus'] / 1e6
+        
+        ax.plot(country_data['year'], pop_millions, 
+               color=eastern_colors[i], linewidth=2.5, marker='o', markersize=5,
+               label=country, alpha=0.9, markerfacecolor='white', 
+               markeredgecolor=eastern_colors[i], markeredgewidth=1.5)
+
+# Customize Eastern Africa plot
+ax.set_ylabel('Population at Warning Level 3+ (Millions)', fontsize=12, fontweight='bold')
+ax.set_title('Eastern Africa: Population Under Severe+ Agricultural Warnings (July)', 
+            fontsize=14, fontweight='bold', pad=15)
+ax.grid(True, linestyle='--', alpha=0.6, color='gray')
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+ax.set_facecolor('#FAFAFA')
+
+# Legend for Eastern Africa
+legend1 = ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', 
+                   frameon=True, fancybox=True, shadow=True, fontsize=10)
+legend1.get_frame().set_facecolor('white')
+legend1.get_frame().set_alpha(0.9)
+
+ax.set_ylim(bottom=0)
+
+# Plot Southern Africa
+ax = ax2
+region_data = july_data[july_data['country'].isin(southern_africa)].copy()
+
+for i, country in enumerate(southern_africa):
+    if country in region_data['country'].values:
+        country_data = region_data[region_data['country'] == country].sort_values('year')
+        pop_millions = country_data['crop_pop_warning_3_plus'] / 1e6
+        
+        ax.plot(country_data['year'], pop_millions, 
+               color=southern_colors[i], linewidth=2.5, marker='s', markersize=5,
+               label=country, alpha=0.9, markerfacecolor='white', 
+               markeredgecolor=southern_colors[i], markeredgewidth=1.5)
+
+# Customize Southern Africa plot
+ax.set_xlabel('Year', fontsize=12, fontweight='bold')
+ax.set_ylabel('Population at Warning Level 3+ (Millions)', fontsize=12, fontweight='bold')
+ax.set_title('Southern Africa: Population Under Severe+ Agricultural Warnings (July)', 
+            fontsize=14, fontweight='bold', pad=15)
+ax.grid(True, linestyle='--', alpha=0.6, color='gray')
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+ax.set_facecolor('#FAFAFA')
+
+# Legend for Southern Africa
+legend2 = ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', 
+                   frameon=True, fancybox=True, shadow=True, fontsize=10)
+legend2.get_frame().set_facecolor('white')
+legend2.get_frame().set_alpha(0.9)
+
+ax.set_ylim(bottom=0)
+
+# Overall title and formatting
+fig.suptitle('ROSEA Agricultural Stress Analysis: July Population Exposure Trends (2001-2025)', 
+            fontsize=16, fontweight='bold', y=0.98)
+
+# Adjust layout
+plt.tight_layout()
+plt.subplots_adjust(top=0.93, bottom=0.08, right=0.85)
+
+plt.show()
+```
+
+## Percentage-Based Regional Analysis
+
+```{python}
+# Create percentage-based regional comparison
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 12))
+
+# Plot Eastern Africa - Percentage
+ax = ax1
+region_data = july_data[july_data['country'].isin(eastern_africa)].copy()
+
+for i, country in enumerate(eastern_africa):
+    if country in region_data['country'].values:
+        country_data = region_data[region_data['country'] == country].sort_values('year')
+        pct_exposure = country_data['crop_pct_warning_3_plus']
+        
+        ax.plot(country_data['year'], pct_exposure, 
+               color=eastern_colors[i], linewidth=2.5, marker='o', markersize=5,
+               label=country, alpha=0.9, markerfacecolor='white', 
+               markeredgecolor=eastern_colors[i], markeredgewidth=1.5)
+
+# Customize Eastern Africa percentage plot
+ax.set_ylabel('% Population at Warning Level 3+', fontsize=12, fontweight='bold')
+ax.set_title('Eastern Africa: Percentage of Population Under Severe+ Agricultural Warnings (July)', 
+            fontsize=14, fontweight='bold', pad=15)
+ax.grid(True, linestyle='--', alpha=0.6, color='gray')
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+ax.set_facecolor('#FAFAFA')
+
+# Legend for Eastern Africa
+legend1 = ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', 
+                   frameon=True, fancybox=True, shadow=True, fontsize=10)
+legend1.get_frame().set_facecolor('white')
+legend1.get_frame().set_alpha(0.9)
+
+ax.set_ylim(bottom=0)
+
+# Plot Southern Africa - Percentage
+ax = ax2
+region_data = july_data[july_data['country'].isin(southern_africa)].copy()
+
+for i, country in enumerate(southern_africa):
+    if country in region_data['country'].values:
+        country_data = region_data[region_data['country'] == country].sort_values('year')
+        pct_exposure = country_data['crop_pct_warning_3_plus']
+        
+        ax.plot(country_data['year'], pct_exposure, 
+               color=southern_colors[i], linewidth=2.5, marker='s', markersize=5,
+               label=country, alpha=0.9, markerfacecolor='white', 
+               markeredgecolor=southern_colors[i], markeredgewidth=1.5)
+
+# Customize Southern Africa percentage plot
+ax.set_xlabel('Year', fontsize=12, fontweight='bold')
+ax.set_ylabel('% Population at Warning Level 3+', fontsize=12, fontweight='bold')
+ax.set_title('Southern Africa: Percentage of Population Under Severe+ Agricultural Warnings (July)', 
+            fontsize=14, fontweight='bold', pad=15)
+ax.grid(True, linestyle='--', alpha=0.6, color='gray')
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+ax.set_facecolor('#FAFAFA')
+
+# Legend for Southern Africa
+legend2 = ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', 
+                   frameon=True, fancybox=True, shadow=True, fontsize=10)
+legend2.get_frame().set_facecolor('white')
+legend2.get_frame().set_alpha(0.9)
+
+ax.set_ylim(bottom=0)
+
+# Overall title for percentage plot
+fig.suptitle('ROSEA Agricultural Stress Analysis: July Population Exposure Percentages (2001-2025)', 
+            fontsize=16, fontweight='bold', y=0.98)
+
+plt.tight_layout()
+plt.subplots_adjust(top=0.93, bottom=0.08, right=0.85)
+
+plt.show()
+```
+
+## Regional Summary Statistics
+
+```{python}
+print("=== JULY WARNING 3+ EXPOSURE BY REGION ===\n")
+
+print("EASTERN AFRICA:")
+east_data = july_data[july_data['country'].isin(eastern_africa)]
+
+for country in eastern_africa:
+    if country in east_data['country'].values:
+        country_data = east_data[east_data['country'] == country]
+        avg_pop = country_data['crop_pop_warning_3_plus'].mean()
+        avg_pct = country_data['crop_pct_warning_3_plus'].mean()
+        years_data = len(country_data)
+        print(f"  {country}: {avg_pop:,.0f} people ({avg_pop/1e6:.1f}M) - {avg_pct:.1f}% - {years_data} years")
+
+print(f"\nSOUTHERN AFRICA:")
+south_data = july_data[july_data['country'].isin(southern_africa)]
+
+for country in southern_africa:
+    if country in south_data['country'].values:
+        country_data = south_data[south_data['country'] == country]
+        avg_pop = country_data['crop_pop_warning_3_plus'].mean()
+        avg_pct = country_data['crop_pct_warning_3_plus'].mean()
+        years_data = len(country_data)
+        print(f"  {country}: {avg_pop:,.0f} people ({avg_pop/1e6:.1f}M) - {avg_pct:.1f}% - {years_data} years")
+
+# Regional totals
+east_total = east_data['crop_pop_warning_3_plus'].sum() / len(east_data['year'].unique()) / 1e6
+south_total = south_data['crop_pop_warning_3_plus'].sum() / len(south_data['year'].unique()) / 1e6
+
+print(f"\n🌍 REGIONAL AVERAGES (July):")
+print(f"   Eastern Africa: {east_total:.1f}M people per year")
+print(f"   Southern Africa: {south_total:.1f}M people per year")
+print(f"   Total ROSEA: {(east_total + south_total):.1f}M people per year")
+```
+
+
+## Percentile-Based Thresholds: Cropland Analysis (Example)
+
+You set thresholds per month based on all countries values of % above a specific category (like `2+`, `3+`, or `4`). OR you could potentially calculate the percentile  values for regional groups (i.e east africa vs south africa), or even per county.
+
+Here we do it all at once (one group) for 3+
+
+```{python}
+#| label: fig-monthly-scatter
+#| fig-cap: "Monthly percentage of population at Warning 3+ by country with threshold lines"
+#| fig-width: 16
+#| fig-height: 10
+
+# Prepare data for scatter plot
+scatter_data = exposure_df.copy()
+scatter_data['month_jitter'] = scatter_data['month'] + np.random.normal(0, 0.1, len(scatter_data))
+
+# Create the scatter plot
+fig, ax = plt.subplots(figsize=(16, 10))
+
+# Get unique countries and create color map
+countries = sorted(scatter_data['country'].unique())
+colors = plt.cm.tab20(np.linspace(0, 1, len(countries)))
+country_colors = dict(zip(countries, colors))
+
+# Plot each country
+for i, country in enumerate(countries):
+    country_data = scatter_data[scatter_data['country'] == country]
+    ax.scatter(
+        country_data['month_jitter'], 
+        country_data['crop_pct_warning_3_plus'],
+        c=[country_colors[country]], 
+        label=country,
+        alpha=0.7,
+        s=40,
+        edgecolors='white',
+        linewidth=0.5
+    )
+
+# Calculate percentile threshold values from the actual data
+percentile_levels = [66, 80, 90]  # Percentiles we want to show
+threshold_values = []
+for percentile in percentile_levels:
+    threshold_val = np.percentile(scatter_data['crop_pct_warning_3_plus'], percentile)
+    threshold_values.append(threshold_val)
+
+threshold_colors = ['orange', 'red', 'darkred']
+threshold_styles = ['--', '-.', ':']
+
+print(f"Calculated percentile thresholds:")
+for percentile, value in zip(percentile_levels, threshold_values):
+    print(f"  {percentile}th percentile = {value:.1f}% population above Warning 3+")
+
+# Add horizontal threshold lines based on calculated percentiles
+for percentile, threshold, color, style in zip(percentile_levels, threshold_values, threshold_colors, threshold_styles):
+    ax.axhline(y=threshold, color=color, linestyle=style, linewidth=2, 
+               alpha=0.8, label=f'{percentile}th percentile ({threshold:.1f}%)')
+
+# Customize the plot
+ax.set_xlabel('Month', fontsize=14, fontweight='bold')
+ax.set_ylabel('% Population at Warning Level 3+', fontsize=14, fontweight='bold')
+ax.set_title('Monthly Population Exposure to Warning Level 3+ by Country\nwith Emergency Threshold Lines', 
+             fontsize=16, fontweight='bold', pad=20)
+
+# Set x-axis ticks and labels
+month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+               'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+ax.set_xticks(range(1, 13))
+ax.set_xticklabels(month_names)
+ax.set_xlim(0.5, 12.5)
+
+# Set y-axis limits
+ax.set_ylim(0, max(100, scatter_data['crop_pct_warning_3_plus'].max() * 1.05))
+
+# Add grid
+ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+ax.set_facecolor('#FAFAFA')
+
+# Create legend with countries and thresholds
+# Countries legend
+legend1 = ax.legend(countries, loc='upper left', bbox_to_anchor=(1.02, 1), 
+                   title='Countries', title_fontsize=12, fontsize=10,
+                   frameon=True, fancybox=True, shadow=True)
+legend1.get_frame().set_facecolor('white')
+legend1.get_frame().set_alpha(0.9)
+
+# Add thresholds to the legend
+import matplotlib.lines as mlines
+threshold_lines = []
+for percentile, threshold, color, style in zip(percentile_levels, threshold_values, threshold_colors, threshold_styles):
+    threshold_lines.append(mlines.Line2D([], [], color=color, linestyle=style, 
+                                        linewidth=2, label=f'{percentile}th percentile ({threshold:.1f}%)'))
+
+legend2 = ax.legend(handles=threshold_lines, loc='upper left', bbox_to_anchor=(1.02, 0.3),
+                   title='Thresholds', title_fontsize=12, fontsize=10,
+                   frameon=True, fancybox=True, shadow=True)
+legend2.get_frame().set_facecolor('white')
+legend2.get_frame().set_alpha(0.9)
+
+# Add first legend back
+ax.add_artist(legend1)
+
+plt.tight_layout()
+plt.subplots_adjust(right=0.85)  # Make room for legends
+plt.show()
+```

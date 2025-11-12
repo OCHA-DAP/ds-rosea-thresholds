@@ -7,7 +7,6 @@ app = marimo.App(width="medium", app_title="ROSEA IPC Thresholds")
 @app.cell
 def _():
     import marimo as mo
-
     return (mo,)
 
 
@@ -76,6 +75,8 @@ def _():
     import numpy as np
     from plotly.subplots import make_subplots
     import matplotlib.colors as mcolors
+    import zipfile
+    import io
 
     load_dotenv(find_dotenv(usecwd=True))
 
@@ -101,6 +102,7 @@ def _():
     iso3_to_country = {v: k for k, v in iso3s.items()}
     return (
         go,
+        io,
         iso3_to_country,
         iso3s,
         make_subplots,
@@ -111,6 +113,7 @@ def _():
         px,
         requests,
         stratus,
+        zipfile,
     )
 
 
@@ -204,7 +207,6 @@ def _(os, pd, requests):
             .reset_index()
         )
         return pd.concat([df_all, dff])
-
     return combine_4_plus, get_ipc_from_hapi, get_pop
 
 
@@ -519,9 +521,7 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""The table below summarizes some initial proposed thresholds for four levels of alert based on incoming IPC reports. Each alert level is tied to a specific support package. Note that the "high" and "very high" alert levels each have two potential trigger conditions, designed to capture both emergency crises OR rapidly deteriorating conditions. **Note** that we do not evaluate for deteriorating conditions across reports where the population analyzed is significantly different (>10%).  The table below also summarizes some key statistics per alert level based on a historical analysis of IPC data (as shown in the charts below)."""
-    )
+    mo.md(r"""The table below summarizes some initial proposed thresholds for four levels of alert based on incoming IPC reports. Each alert level is tied to a specific support package. Note that the "high" and "very high" alert levels each have two potential trigger conditions, designed to capture both emergency crises OR rapidly deteriorating conditions. **Note** that we do not evaluate for deteriorating conditions across reports where the population analyzed is significantly different (>10%).  The table below also summarizes some key statistics per alert level based on a historical analysis of IPC data (as shown in the charts below).""")
     return
 
 
@@ -684,9 +684,7 @@ def _(df_all_wide, iso3_to_country, pd):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""Use the charts below to investigate past performance of these thresholds and compare against historical occurrences of surge support, flash appeals, and CERF disbursements. As one can see from the charts, the temporal coverage of IPC reporting windows across countries can be inconsistent. Thus, some desired windows of past activation may be missing due to missing IPC data, rather than misconfigured thresholds. A lack of IPC reports for a given period of time may not necessarily indicate a lack of food security concern."""
-    )
+    mo.md(r"""Use the charts below to investigate past performance of these thresholds and compare against historical occurrences of surge support, flash appeals, and CERF disbursements. As one can see from the charts, the temporal coverage of IPC reporting windows across countries can be inconsistent. Thus, some desired windows of past activation may be missing due to missing IPC data, rather than misconfigured thresholds. A lack of IPC reports for a given period of time may not necessarily indicate a lack of food security concern.""")
     return
 
 
@@ -1133,9 +1131,7 @@ def _(
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""We can drill down even further into specific countries by looking at the plot below. Here, we can get a closer look at how well various alert levels correlate with the timing of past surge support and funding disbursements."""
-    )
+    mo.md(r"""We can drill down even further into specific countries by looking at the plot below. Here, we can get a closer look at how well various alert levels correlate with the timing of past surge support and funding disbursements.""")
     return
 
 
@@ -1179,10 +1175,25 @@ def _(df_levels_sel, iso3_dropdown, mo):
 
 
 @app.cell
+def _(io, iso3_dropdown, iso3s, pd, requests, zipfile):
+    url = "https://agricultural-production-hotspots.ec.europa.eu/files/hotspots_ts.zip"
+    response = requests.get(url)
+    df_hotspots = pd.read_csv(zipfile.ZipFile(io.BytesIO(response.content)).open('hotspots_ts.csv'), sep=';')
+    df_hotspots = df_hotspots[df_hotspots["asap0_name"].isin(list(iso3s.keys()))]
+    df_hotspots = df_hotspots.sort_values(['asap0_name', 'date']).reset_index(drop=True)
+    df_hotspots['date'] = pd.to_datetime(df_hotspots['date'])
+    df_hotspots_ = df_hotspots[df_hotspots.asap0_name == iso3_dropdown.selected_key]
+
+    df_hotspots_pivot = df_hotspots_.pivot(index='asap0_name', columns='date', values='hs_code')
+    return (df_hotspots_pivot,)
+
+
+@app.cell
 def _(
     cerf_color,
     df_cerf_sel,
     df_fa_sel,
+    df_hotspots_pivot,
     df_levels_sel,
     df_surge_sel,
     fa_color,
@@ -1209,11 +1220,11 @@ def _(
     # Create plot
     _fig = go.Figure()
     _fig = make_subplots(
-        rows=2,
+        rows=3,
         cols=1,
         shared_xaxes=True,
         vertical_spacing=0.06,
-        row_heights=[0.85, 0.15],
+        row_heights=[0.75, 0.15, 0.1],
     )
 
     # -----------------------------------------
@@ -1397,6 +1408,34 @@ def _(
         title=y_axis_title,
         row=1,
         col=1,
+    )
+
+    _fig.update_xaxes(range=['2016-01-01', None]) 
+
+    # ----------------------------------------- 
+    # Add heatmap trace
+    _fig.add_trace(
+        go.Heatmap(
+            z=df_hotspots_pivot.values,
+            x=df_hotspots_pivot.columns,
+            y=df_hotspots_pivot.index,
+            colorscale=[[0, '#b0b0b0'], [0.5, 'red'], [1, 'darkred']],
+            zmin=0,
+            zmax=2,
+            showscale=False,
+        ),
+        row=3,
+        col=1
+    )
+
+    # Update y-axis for the heatmap row
+    _fig.update_yaxes(
+        showticklabels=True,
+        tickvals=[0],
+        ticktext=['Hotspot Status'],
+        showgrid=False,
+        row=3,
+        col=1
     )
 
     _fig.update_yaxes(visible=False, range=[0.65, 1.05], row=2, col=1)
