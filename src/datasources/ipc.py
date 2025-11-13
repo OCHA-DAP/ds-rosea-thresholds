@@ -1,11 +1,25 @@
 import os
-import requests
-import pandas as pd
+
 import numpy as np
-from src.constants import *
+import pandas as pd
+import requests
+
+from src.constants import (
+    H_D_IN_3,
+    H_D_PR_3,
+    H_S_POP_4,
+    M_POP_4,
+    M_PR_3,
+    VH_D_IN_4,
+    VH_D_PR_3,
+    VH_S_POP_4,
+)
+
 
 def get_reports(filter_iso3s=None):
-    endpoint = "https://hapi.humdata.org/api/v2/food-security-nutrition-poverty/food-security"
+    endpoint = (
+        "https://hapi.humdata.org/api/v2/food-security-nutrition-poverty/food-security"
+    )
     params = {
         "app_identifier": os.getenv("HAPI_APP_IDENTIFIER"),
         "admin_level": 0,
@@ -36,8 +50,9 @@ def get_reports(filter_iso3s=None):
             "From",
             "To",
             "year",
-        ]           
+        ]
     ]
+
 
 def classify_reports(df):
     _df = df.copy()
@@ -64,6 +79,7 @@ def _get_pop_analyzed(df):
     )
     return _df
 
+
 def _combine_4_plus(df):
     _df = df.copy()
     mapping = {"4": "4+", "5": "4+"}
@@ -89,6 +105,7 @@ def _combine_4_plus(df):
         .reset_index()
     )
     return pd.concat([df, dff])
+
 
 def _classify_row(row):
     P3 = row.get("proportion_3+", np.nan)
@@ -117,6 +134,7 @@ def _classify_row(row):
     elif M:
         return "medium"
     return "low"
+
 
 def _transform_wide(df):
     _df = df.copy()
@@ -180,7 +198,6 @@ def _transform_wide(df):
         df_all_wide[col] = (
             pd.to_numeric(df_all_wide[col], errors="coerce").round().astype("Int64")
         )
-
 
     df_all_wide["pt_change_3+"] = df_all_wide["pt_change_3+"].fillna(0)
     df_all_wide["pt_change_4+"] = df_all_wide["pt_change_4+"].fillna(0)
