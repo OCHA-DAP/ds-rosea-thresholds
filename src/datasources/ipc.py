@@ -202,3 +202,22 @@ def _transform_wide(df):
     df_all_wide["pt_change_3+"] = df_all_wide["pt_change_3+"].fillna(0)
     df_all_wide["pt_change_4+"] = df_all_wide["pt_change_4+"].fillna(0)
     return df_all_wide
+
+
+def process_latest_ipc(df):
+    _df = df.copy()
+    cur = pd.Timestamp.now()
+    _df = _df[_df.To > cur]
+    priority_order = ["current", "first projection", "second projection"]
+    _df["ipc_type_cat"] = pd.Categorical(
+        _df["ipc_type"], categories=priority_order, ordered=True
+    )
+    df_ipc_latest_filt = (
+        _df.sort_values(["location_code", "ipc_type_cat"])
+        .drop_duplicates(subset=["location_code"], keep="first")
+        .drop(columns=["ipc_type_cat"])
+    )  # Remove the helper column
+
+    assert _df.location_code.nunique() == len(df_ipc_latest_filt)
+    print(f"Latest IPC reports from {_df.location_code.nunique()} countries")
+    return df_ipc_latest_filt

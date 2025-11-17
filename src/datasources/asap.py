@@ -4,7 +4,7 @@ import zipfile
 import pandas as pd
 import requests
 
-from src.constants import HIGH_CONSEC
+from src.constants import HIGH_CONSEC, ISO3S
 
 
 def _classify_row(row):
@@ -28,6 +28,7 @@ def get_hotspots(filter_countries=None):
     )
     if filter_countries:
         df = df[df["asap0_name"].isin(filter_countries)]
+    df["date"] = pd.to_datetime(df["date"])
     df = df.sort_values(["asap0_name", "date"]).reset_index(drop=True)
     return df
 
@@ -40,5 +41,19 @@ def classify_hotspots(df):
     _df["alert_level"] = _df.apply(_classify_row, axis=1)
     _df = _df[["asap0_name", "date", "alert_level", "comment"]].rename(
         columns={"asap0_name": "country"}
+    )
+    return _df
+
+
+def proccess_latest_hotspots(df):
+    _df = df.copy()
+    last = pd.Timestamp.now() - pd.DateOffset(months=1)
+    _df = _df[_df["date"].dt.to_period("M") == last.to_period("M")]
+    _df["location_code"] = _df["country"].map(ISO3S)
+
+    assert _df.date.max() == df.date.max()
+    assert _df.date.nunique() == 1
+    print(
+        f"Hotspots from {_df.date.unique()[0]} across {_df.country.nunique()} countries"
     )
     return _df
