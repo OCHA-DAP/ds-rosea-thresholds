@@ -1,5 +1,5 @@
 import pandas as pd
-from great_tables import GT, html, md, style
+from great_tables import GT, html, md, px, style
 from great_tables import loc as gt_loc
 
 
@@ -27,7 +27,7 @@ def ipc_table(df, title):
         .tab_source_note(
             source_note=html(
                 f"""
-                Updated as of {cur.strftime('%b %-d, %Y')}. Referencing the latest data
+                Updated as of {cur.strftime("%b %-d, %Y")}. Referencing the latest data
                 that overlaps with the current date. See further details from the
                 <a href='https://www.ipcinfo.org/ipc-country-analysis/en/'>IPC website
                 </a>.<br><br> * A value of 0 may also indicate that no comparison
@@ -38,11 +38,35 @@ def ipc_table(df, title):
     )
 
 
-def summary_table(df):
+def summary_table(df, changes_df=None):
     cur = pd.Timestamp.now()
-    return (
+
+    df_display = df.copy()
+
+    # Add direction column
+    if changes_df is not None:
+        severity_order = {"low": 0, "medium": 1, "high": 2, "very high": 3}
+        direction = pd.Series("", index=df.index)
+
+        for idx in changes_df.index:
+            # Get first alert column that changed
+            alert_cols = ["max_alert_level", "alert_level_hs", "alert_level_ipc"]
+            for col in alert_cols:
+                if col in changes_df.columns:
+                    old_val = changes_df.loc[idx, (col, "self")]
+                    new_val = changes_df.loc[idx, (col, "other")]
+
+                    if severity_order[old_val] < severity_order[new_val]:
+                        direction[idx] = "↑ Worsened"
+                    elif severity_order[old_val] > severity_order[new_val]:
+                        direction[idx] = "↓ Improved"
+                    break
+
+        df_display.insert(0, "Change", direction)
+
+    gt = (
         GT(
-            df.drop(columns=["hotspot_comment", "iso3"]),
+            df_display.drop(columns=["hotspot_comment", "iso3"]),
             rowname_col="country",
         )
         .cols_label(
@@ -53,12 +77,30 @@ def summary_table(df):
             ipc_end_date=html("IPC Period End Date"),
             ipc_start_date=html("IPC Period Start Date"),
             hotspot_date=html("Hotspot Date"),
+            Change=html("Change"),
         )
         .fmt_date(
             columns=["hotspot_date", "ipc_end_date", "ipc_start_date"],
             date_style="m_day_year",
         )
-        .tab_style(
+    )
+
+    # Highlight changed cells
+    if changes_df is not None:
+        for idx, col in changes_df.columns:
+            if col in df.columns:
+                gt = gt.tab_style(
+                    style=[
+                        style.borders(
+                            sides="all", color="black", style="solid", weight=px(3)
+                        )
+                    ],
+                    locations=gt_loc.body(columns=[col], rows=idx),
+                )
+
+    # Alert level colors and header
+    gt = (
+        gt.tab_style(
             style=[style.fill(color="#8B0000"), style.text(color="white")],
             locations=gt_loc.body(
                 columns=["max_alert_level"],
@@ -93,3 +135,5 @@ def summary_table(df):
             source_note=html(f"Updated as of {cur.strftime('%b %-d, %Y')}.")
         )
     )
+
+    return gt
