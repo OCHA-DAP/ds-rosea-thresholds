@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.15.2"
-app = marimo.App()
+app = marimo.App(css_file="assets/custom.css")
 
 
 @app.cell
@@ -51,8 +51,15 @@ def _():
     from src import plot
     from src.constants import ISO3S
 
+    color_map = {
+        "low": "#2E8B57",  # Sea Green
+        "medium": "#FF8C00",  # Dark Orange
+        "high": "#DC143C",  # Crimson
+        "very high": "#8B0000",  # Dark Red
+    }
+
     _ = load_dotenv(find_dotenv(usecwd=True))  # noqa
-    return HTTPFileSystem, ISO3S, gpd, pd, plot, px, stratus
+    return HTTPFileSystem, ISO3S, color_map, gpd, pd, plot, px, stratus
 
 
 @app.cell
@@ -70,38 +77,18 @@ def _(HTTPFileSystem, gpd, mo):
 
 
 @app.cell
-def _(ISO3S, get_admin):
+def _(ISO3S, get_admin, stratus):
     gdf = get_admin(list(ISO3S.values()))
-    return (gdf,)
 
-
-@app.cell
-def _(stratus):
     df_clean = stratus.load_csv_from_blob(
         "ds-rosea-thresholds/monitoring/summary.csv",
         parse_dates=["hotspot_date", "ipc_start_date", "ipc_end_date"],
     )
-    return (df_clean,)
 
-
-@app.cell
-def _(df_clean, gdf):
     gdf_merged = gdf[["iso_3", "geometry"]].merge(
         df_clean, right_on="iso3", left_on="iso_3"
     )
-    return (gdf_merged,)
-
-
-@app.cell
-def _():
-    # Define color mapping for alert levels
-    color_map = {
-        "low": "#2E8B57",  # Sea Green
-        "medium": "#FF8C00",  # Dark Orange
-        "high": "#DC143C",  # Crimson
-        "very high": "#8B0000",  # Dark Red
-    }
-    return (color_map,)
+    return df_clean, gdf_merged
 
 
 @app.cell
@@ -154,12 +141,13 @@ def _(color_map, gdf_merged, px):
         hover_data=hover_data_formatted,
         color_discrete_map=color_map,
         zoom=2.5,
-        center={"lat": -8, "lon": 30},
+        center={"lat": -9, "lon": 30},
         opacity=0.75,
     )
 
     # Update layout for better presentation
     fig.update_layout(
+        height=350,
         margin={"l": 0, "r": 0, "t": 0, "b": 0},
         legend={
             "title": {
@@ -220,24 +208,14 @@ def _(mo, pd, sel):
 
 
 @app.cell
-def _(mo, sel):
-    summary_text = sel["hotspot_comment"][0]
-    mo.md(summary_text)
-    return
-
-
-@app.cell
 def _(country_select, mo, pd, plot, sel):
     mo.stop(pd.isna(sel["alert_level_ipc"][0]), mo.md("No IPC data available."))
 
-    ipc_start = sel["ipc_start_date"][0].strftime("%b %-d, %Y")
-    ipc_end = sel["ipc_end_date"][0].strftime("%b %-d, %Y")
+    ipc_start = sel["ipc_start_date"][0].strftime("%-d %b %Y")
+    ipc_end = sel["ipc_end_date"][0].strftime("%-d %b %Y")
     ipc_dates = f"{ipc_start} - {ipc_end}"
 
-    title = f"""
-        {country_select.value} IPC Summary:
-        {ipc_dates} ({sel["ipc_type"][0].capitalize()})
-        """
+    title = f"{country_select.value} IPC Summary: {ipc_dates} ({sel['ipc_type'][0].capitalize()})"  # noqa
 
     df_pivot = sel.melt(
         id_vars=["index", "country", "iso3"],  # columns to keep as identifiers
@@ -267,6 +245,13 @@ def _(country_select, mo, pd, plot, sel):
     )
 
     plot.ipc_table(df_pivot, title)
+    return
+
+
+@app.cell
+def _(mo, sel):
+    summary_text = sel["hotspot_comment"][0]
+    mo.md(summary_text)
     return
 
 

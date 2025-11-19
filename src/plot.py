@@ -9,6 +9,7 @@ def ipc_table(df, title):
         GT(df, rowname_col="phase")
         .fmt_number(columns="population", decimals=0, use_seps=True)
         .fmt_number(columns="pt_change", decimals=0)
+        .fmt_percent(columns="proportion", decimals=0)
         .data_color(columns=["population"], palette="Reds", domain=[0, 6000000])
         .data_color(columns=["proportion"], palette="Reds", domain=[0, 1])
         .data_color(
@@ -19,7 +20,7 @@ def ipc_table(df, title):
         .cols_label(
             population=html("Population in phase"),
             proportion=html("Proportion of analyzed population"),
-            pt_change=html("Percent change *"),
+            pt_change=html("Percent point change *"),
         )
         .tab_header(
             title=md(title),
@@ -27,7 +28,7 @@ def ipc_table(df, title):
         .tab_source_note(
             source_note=html(
                 f"""
-                Updated as of {cur.strftime("%b %-d, %Y")}. Referencing the latest data
+                Updated as of {cur.strftime("%-d %b %Y")}. Referencing the latest data
                 that overlaps with the current date. See further details from the
                 <a href='https://www.ipcinfo.org/ipc-country-analysis/en/'>IPC website
                 </a>.<br><br> * A value of 0 may also indicate that no comparison
@@ -83,7 +84,7 @@ def summary_table(df, changes_df=None):
         )
         .fmt_date(
             columns=["hotspot_date", "ipc_end_date", "ipc_start_date"],
-            date_style="m_day_year",
+            date_style="day_m_year",
         )
     )
 
@@ -139,7 +140,7 @@ def summary_table(df, changes_df=None):
             title=md("Alert Summary, Per Country. Combined Hotspot and IPC Alerts."),
         )
         .tab_source_note(
-            source_note=html(f"Updated as of {cur.strftime('%b %-d, %Y')}.")
+            source_note=html(f"Updated as of {cur.strftime('%-d %b %Y')}.")
         )
     )
 
