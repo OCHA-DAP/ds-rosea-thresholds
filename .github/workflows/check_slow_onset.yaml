@@ -3,7 +3,16 @@ name: Check Slow Onset
 on:
   schedule:
     - cron: '0 0 * * *'  # Runs daily at midnight UTC
-  workflow_dispatch:  # Allows manual triggering
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force update even if no changes'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
 
 jobs:
   check-monitoring:
@@ -17,4 +26,4 @@ jobs:
           HAPI_APP_IDENTIFIER: ${{ secrets.HAPI_APP_IDENTIFIER }}
           DSCI_AZ_BLOB_DEV_SAS: ${{ secrets.DSCI_AZ_BLOB_DEV_SAS }}
           DSCI_AZ_BLOB_DEV_SAS_WRITE: ${{ secrets.DSCI_AZ_BLOB_DEV_SAS_WRITE }}
-        run: uv run check_slow_onset.py
+        run: uv run check_slow_onset.py ${{ github.event.inputs.force == 'true' && '--force' || '' }}

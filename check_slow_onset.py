@@ -42,6 +42,8 @@ if __name__ == "__main__":
 
     if len(diff) != 0 or args.force:
         print("Alert! Writing new outputs...")
+        if args.force:
+            print("Forcing update...")
         # Create the table and save as an image...
         with tempfile.TemporaryDirectory() as temp_dir:
             df_table = df_clean.drop(df_clean.columns[-9:], axis=1)
