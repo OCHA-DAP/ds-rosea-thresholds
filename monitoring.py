@@ -41,9 +41,6 @@ def _(mo):
 
 @app.cell
 def _():
-    import tempfile
-    from pathlib import Path
-
     import geopandas as gpd
     import ocha_stratus as stratus
     import pandas as pd
@@ -51,75 +48,11 @@ def _():
     from dotenv import find_dotenv, load_dotenv
     from fsspec.implementations.http import HTTPFileSystem
 
-    from src import plot, utils
+    from src import plot
     from src.constants import ISO3S
-    from src.datasources import asap, ipc
 
-    load_dotenv(find_dotenv(usecwd=True))
-    return (
-        HTTPFileSystem,
-        ISO3S,
-        Path,
-        asap,
-        gpd,
-        ipc,
-        pd,
-        plot,
-        px,
-        stratus,
-        tempfile,
-        utils,
-    )
-
-
-@app.cell
-def _(ISO3S, asap, ipc, utils):
-    df_hs_raw = asap.get_hotspots(filter_countries=list(ISO3S.keys()))
-    df_hs_classified = asap.classify_hotspots(df_hs_raw)
-    df_hs_latest = asap.proccess_latest_hotspots(df_hs_classified)
-
-    df_ipc_raw = ipc.get_reports(filter_iso3s=list(ISO3S.values()))
-    df_ipc_classified = ipc.classify_reports(df_ipc_raw)
-    df_ipc_latest = ipc.process_latest_ipc(df_ipc_classified)
-
-    df_clean = utils.merge_ipc_hotspots(df_hs=df_hs_latest, df_ipc=df_ipc_latest)
-    return (df_clean,)
-
-
-@app.cell
-def _(Path, df_clean, pd, plot, stratus, tempfile):
-    # Check the latest file
-    df_latest = stratus.load_csv_from_blob(
-        "ds-rosea-thresholds/monitoring/summary.csv",
-        parse_dates=["ipc_end_date", "ipc_start_date", "hotspot_date"],
-    )
-    diff = df_clean.compare(df_latest)
-
-    if len(diff != 0):
-        print("Alert! Changes detected! Writing new outputs...")
-        # Create the table and save as an image...
-        with tempfile.TemporaryDirectory() as temp_dir:
-            df_table = df_clean.drop(df_clean.columns[-7:], axis=1)
-            gt = plot.summary_table(df_table)
-            output_path = Path(temp_dir) / "tmp.png"
-            gt.save(output_path, scale=4, window_size=[4000, 8000])
-            # Save as the summary file
-            with open(output_path, "rb") as data:
-                stratus.upload_blob_data(
-                    data, "ds-rosea-thresholds/monitoring/summary_table.png"
-                )
-
-        # Save the CSV in the date folder and as a summary file
-        stratus.upload_csv_to_blob(
-            df_clean, blob_name="ds-rosea-thresholds/monitoring/summary.csv"
-        )
-        stratus.upload_csv_to_blob(
-            df_clean,
-            blob_name=f"ds-rosea-thresholds/monitoring/{pd.Timestamp.now().strftime('%Y%m%d')}/summary.csv",
-        )
-    else:
-        print("No new changes detected! Keeping old summary file.")
-    return
+    _ = load_dotenv(find_dotenv(usecwd=True))  # noqa
+    return HTTPFileSystem, ISO3S, gpd, pd, plot, px, stratus
 
 
 @app.cell
@@ -140,6 +73,15 @@ def _(HTTPFileSystem, gpd, mo):
 def _(ISO3S, get_admin):
     gdf = get_admin(list(ISO3S.values()))
     return (gdf,)
+
+
+@app.cell
+def _(stratus):
+    df_clean = stratus.load_csv_from_blob(
+        "ds-rosea-thresholds/monitoring/summary.csv",
+        parse_dates=["hotspot_date", "ipc_start_date", "ipc_end_date"],
+    )
+    return (df_clean,)
 
 
 @app.cell
@@ -293,9 +235,9 @@ def _(country_select, mo, pd, plot, sel):
     ipc_dates = f"{ipc_start} - {ipc_end}"
 
     title = f"""
-        {country_select.value} IPC Summary: {ipc_dates}
-        ({sel['ipc_type'][0].capitalize()})
-    """
+        {country_select.value} IPC Summary:
+        {ipc_dates} ({sel["ipc_type"][0].capitalize()})
+        """
 
     df_pivot = sel.melt(
         id_vars=["index", "country", "iso3"],  # columns to keep as identifiers
