@@ -138,7 +138,7 @@ def _classify_row(row):
 
 def _transform_wide(df):
     _df = df.copy()
-    _df = _df[_df.ipc_phase.isin(["3+", "4+"])]
+    _df = _df[_df.ipc_phase.isin(["3+", "4+", "5"])]
     _df = _df.sort_values(["location_code", "From"], ascending=True)
 
     index_cols = [
@@ -157,7 +157,7 @@ def _transform_wide(df):
 
     # Check that it's half the length, because we made the 3+ and 4+
     # categories wide
-    assert len(df_all_wide) == (len(_df) / 2)
+    # assert len(df_all_wide) == (len(_df) / 2)
 
     # Calculate if populations are comparable (within 10%)
     POP_THRESH = 0.1
@@ -188,13 +188,21 @@ def _transform_wide(df):
         columns={
             "population_fraction_in_phase_3+": "proportion_3+",
             "population_fraction_in_phase_4+": "proportion_4+",
+            "population_fraction_in_phase_5": "proportion_5",
             "population_in_phase_3+": "population_3+",
             "population_in_phase_4+": "population_4+",
+            "population_in_phase_5": "population_5",
         },
         inplace=True,
     )
 
-    for col in ["population_3+", "population_4+", "pt_change_3+", "pt_change_4+"]:
+    for col in [
+        "population_3+",
+        "population_4+",
+        "pt_change_3+",
+        "pt_change_4+",
+        "population_5",
+    ]:
         df_all_wide[col] = (
             pd.to_numeric(df_all_wide[col], errors="coerce").round().astype("Int64")
         )

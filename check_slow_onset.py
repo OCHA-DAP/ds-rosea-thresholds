@@ -1,3 +1,4 @@
+import argparse
 import tempfile
 from pathlib import Path
 
@@ -12,6 +13,12 @@ from src.datasources import asap, ipc
 load_dotenv()
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--force", action="store_true", help="Force update even if no changes detected"
+    )
+    args = parser.parse_args()
+
     print("Checking hotspots...")
     df_hs_raw = asap.get_hotspots(filter_countries=list(ISO3S.keys()))
     df_hs_classified = asap.classify_hotspots(df_hs_raw)
@@ -33,12 +40,12 @@ if __name__ == "__main__":
     diff = df_clean.compare(df_latest)
     print(diff.to_string())
 
-    if len(diff != 0):
-        print("Alert! Changes detected! Writing new outputs...")
+    if len(diff) != 0 or args.force:
+        print("Alert! Writing new outputs...")
         # Create the table and save as an image...
         with tempfile.TemporaryDirectory() as temp_dir:
-            df_table = df_clean.drop(df_clean.columns[-7:], axis=1)
-            gt = plot.summary_table(df_table, diff)
+            df_table = df_clean.drop(df_clean.columns[-9:], axis=1)
+            gt = plot.summary_table(df_table, diff if len(diff) != 0 else None)
             output_path = Path(temp_dir) / "tmp.png"
             gt.save(output_path, scale=4, window_size=[4000, 8000])
             # Save as the summary file

@@ -33,8 +33,10 @@ def merge_ipc_hotspots(df_ipc, df_hs):
             "alert_level_detail",
             "proportion_3+",
             "proportion_4+",
+            "proportion_5",
             "population_3+",
             "population_4+",
+            "population_5",
             "pt_change_3+",
             "pt_change_4+",
         ]
