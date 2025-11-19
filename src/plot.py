@@ -46,23 +46,26 @@ def summary_table(df, changes_df=None):
     # Add direction column
     if changes_df is not None:
         severity_order = {"low": 0, "medium": 1, "high": 2, "very high": 3}
-        direction = pd.Series("", index=df.index)
 
         for idx in changes_df.index:
             # Get first alert column that changed
             alert_cols = ["max_alert_level", "alert_level_hs", "alert_level_ipc"]
             for col in alert_cols:
                 if col in changes_df.columns:
-                    old_val = changes_df.loc[idx, (col, "self")]
-                    new_val = changes_df.loc[idx, (col, "other")]
-
-                    if severity_order[old_val] < severity_order[new_val]:
-                        direction[idx] = "↑ Worsened"
-                    elif severity_order[old_val] > severity_order[new_val]:
-                        direction[idx] = "↓ Improved"
+                    old_val = changes_df.loc[idx, (col, "other")]
+                    new_val = changes_df.loc[idx, (col, "self")]
+                    try:
+                        if severity_order[old_val] < severity_order[new_val]:
+                            df_display.loc[
+                                idx, "country"
+                            ] += ' <span style="color: red;">▲</span>'
+                        elif severity_order[old_val] > severity_order[new_val]:
+                            df_display.loc[
+                                idx, "country"
+                            ] += ' <span style="color: green;">▼</span>'
+                    except Exception:
+                        break
                     break
-
-        df_display.insert(0, "Change", direction)
 
     gt = (
         GT(
@@ -77,7 +80,6 @@ def summary_table(df, changes_df=None):
             ipc_end_date=html("IPC Period End Date"),
             ipc_start_date=html("IPC Period Start Date"),
             hotspot_date=html("Hotspot Date"),
-            Change=html("Change"),
         )
         .fmt_date(
             columns=["hotspot_date", "ipc_end_date", "ipc_start_date"],
@@ -87,16 +89,21 @@ def summary_table(df, changes_df=None):
 
     # Highlight changed cells
     if changes_df is not None:
-        for idx, col in changes_df.columns:
+        for col in changes_df.columns.get_level_values(0).unique():
             if col in df.columns:
-                gt = gt.tab_style(
-                    style=[
-                        style.borders(
-                            sides="all", color="black", style="solid", weight=px(3)
-                        )
-                    ],
-                    locations=gt_loc.body(columns=[col], rows=idx),
-                )
+                # Only highlight rows where at least one value is not NaN
+                mask = changes_df[col].notna().any(axis=1)
+                rows_to_highlight = changes_df.index[mask].tolist()
+
+                if rows_to_highlight:
+                    gt = gt.tab_style(
+                        style=[
+                            style.borders(
+                                sides="all", color="black", style="solid", weight=px(3)
+                            )
+                        ],
+                        locations=gt_loc.body(columns=[col], rows=rows_to_highlight),
+                    )
 
     # Alert level colors and header
     gt = (

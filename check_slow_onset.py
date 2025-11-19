@@ -38,7 +38,7 @@ if __name__ == "__main__":
         # Create the table and save as an image...
         with tempfile.TemporaryDirectory() as temp_dir:
             df_table = df_clean.drop(df_clean.columns[-7:], axis=1)
-            gt = plot.summary_table(df_table)
+            gt = plot.summary_table(df_table, diff)
             output_path = Path(temp_dir) / "tmp.png"
             gt.save(output_path, scale=4, window_size=[4000, 8000])
             # Save as the summary file
