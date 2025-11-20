@@ -14,6 +14,7 @@ dependencies = [
     "plotly",
     "matplotlib",
     "great_tables[extra]>=0.20.0",
+    "marimo"
 ]
 
 [project.optional-dependencies]
