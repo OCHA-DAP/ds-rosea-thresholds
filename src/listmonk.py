@@ -7,7 +7,7 @@ LISTMONK_LIST_ID = 3
 LISTMONK_TEMPLATE_ID = 8
 
 
-def send_rosea_campaign(image_url):
+def send_rosea_campaign(body_html):
     LISTMONK_URL = os.getenv("LISTMONK_URL")
     LISTMONK_API_KEY = os.getenv("LISTMONK_API_KEY")
     LISTMONK_API_UID = os.getenv("LISTMONK_API_UID")
@@ -19,7 +19,7 @@ def send_rosea_campaign(image_url):
         "lists": [LISTMONK_LIST_ID],
         "type": "regular",
         "content_type": "richtext",
-        "body": f'<img src="{image_url}" alt="Summary Table" style="max-width: 100%;">',
+        "body": body_html,
         "template_id": LISTMONK_TEMPLATE_ID,
     }
 

@@ -1,12 +1,11 @@
 import argparse
-import tempfile
-from pathlib import Path
 
 import ocha_stratus as stratus
 import pandas as pd
 from dotenv import load_dotenv
+from great_tables import GT
 
-from src import azure_blob, listmonk, plot, utils
+from src import listmonk, plot, utils
 from src.constants import ISO3S
 from src.datasources import asap, ipc
 
@@ -46,15 +45,9 @@ if __name__ == "__main__":
         print("Alert! Writing new outputs...")
         if args.force:
             print("Forcing update...")
-        # Create the table and save as an image...
-        with tempfile.TemporaryDirectory() as temp_dir:
-            df_table = df_clean.drop(df_clean.columns[-9:], axis=1)
-            gt = plot.summary_table(df_table, diff if len(diff) != 0 else None)
-            output_path = Path(temp_dir) / "tmp.png"
-            gt.save(output_path, scale=4, window_size=[4000, 8000])
-            # Save as the summary file
-            with open(output_path, "rb") as data:
-                stratus.upload_blob_data(data, BLOB_LATEST_TABLE)
+
+        df_table = df_clean.drop(df_clean.columns[-9:], axis=1)
+        gt = plot.summary_table(df_table, diff if len(diff) != 0 else None)
 
         # Save the CSV in the date folder and as a summary file
         stratus.upload_csv_to_blob(df_clean, blob_name=BLOB_LATEST_CSV)
@@ -63,7 +56,7 @@ if __name__ == "__main__":
             blob_name=f"ds-rosea-thresholds/monitoring/{pd.Timestamp.now().strftime('%Y%m%d')}/summary.csv",
         )
         print("Updated files saved to blob! Sending emails...")
-        image_url = azure_blob.get_blob_url(BLOB_LATEST_TABLE)
-        listmonk.send_rosea_campaign(image_url)
+        gt_html = GT.as_raw_html(gt)
+        listmonk.send_rosea_campaign(gt_html)
     else:
         print("No new changes detected! Keeping old summary file. No emails sent.")
