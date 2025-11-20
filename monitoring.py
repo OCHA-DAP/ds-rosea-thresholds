@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.2"
+__generated_with = "0.17.7"
 app = marimo.App(css_file="assets/custom.css")
 
 
@@ -49,7 +49,6 @@ def _():
     from fsspec.implementations.http import HTTPFileSystem
 
     from src import plot
-    from src.constants import ISO3S
 
     color_map = {
         "low": "#2E8B57",  # Sea Green
@@ -59,7 +58,7 @@ def _():
     }
 
     _ = load_dotenv(find_dotenv(usecwd=True))  # noqa
-    return HTTPFileSystem, ISO3S, color_map, gpd, pd, plot, px, stratus
+    return HTTPFileSystem, color_map, gpd, pd, plot, px, stratus
 
 
 @app.cell
@@ -73,12 +72,12 @@ def _(HTTPFileSystem, gpd, mo):
         gdf["geometry"] = gdf["geometry"].simplify(tolerance=0.001)
         return gdf
 
-    return (get_admin,)
+    return
 
 
 @app.cell
-def _(ISO3S, get_admin, stratus):
-    gdf = get_admin(list(ISO3S.values()))
+def _(gpd, stratus):
+    gdf = gpd.read_parquet("assets/admin_bounds.parquet")
 
     df_clean = stratus.load_csv_from_blob(
         "ds-rosea-thresholds/monitoring/summary.csv",
