@@ -57,6 +57,7 @@ if __name__ == "__main__":
         )
         print("Updated files saved to blob! Sending emails...")
         gt_html = GT.as_raw_html(gt)
-        listmonk.send_rosea_campaign(gt_html)
+        body_content = listmonk.generate_rosea_content(gt_html)
+        listmonk.send_rosea_campaign(body_content)
     else:
         print("No new changes detected! Keeping old summary file. No emails sent.")

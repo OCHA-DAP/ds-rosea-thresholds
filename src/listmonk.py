@@ -5,6 +5,27 @@ import requests
 
 LISTMONK_LIST_ID = 3
 LISTMONK_TEMPLATE_ID = 8
+METHODS_URL = "https://docs.google.com/document/d/1Wv9JIuk6V0tafRB9FLuB6jcy_EwBU7_iXYqQuOAJeBI/edit?usp=sharing"
+DASHBOARD_URL = (
+    "https://rosea-monitoring-slow-onset-fqejb9gkb8d7ecc3.eastus2-01.azurewebsites.net/"
+)
+
+
+def generate_rosea_content(table_html):
+    intro_html = f"""
+    <div>
+        <p>Dear Colleagues,</p>
+        <p>Please see the table below for an update on our monitoring of slow-onset
+        shocks, to guide the OCHA Regional Office for Eastern and Southern Africa’s
+        (ROSEA) support to countries without a permanent OCHA presence.
+        See <a href='{METHODS_URL}'>
+        this document</a> for a description of the data sources and methods used.</p>
+        <p>You can also find more detailed, country-level information on
+        <a href='{DASHBOARD_URL}'>
+        this dashboard</a>.</p>
+    </div>
+    """
+    return intro_html + table_html
 
 
 def send_rosea_campaign(body_html):
