@@ -13,7 +13,8 @@ dependencies = [
     "python-dotenv",
     "plotly",
     "matplotlib",
-    "great_tables[extra]>=0.20.0"
+    "great_tables[extra]>=0.20.0",
+    "pyzmq>=27.1.0",
 ]
 
 [project.optional-dependencies]

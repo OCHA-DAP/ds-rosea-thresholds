@@ -6,11 +6,13 @@ import ocha_stratus as stratus
 import pandas as pd
 from dotenv import load_dotenv
 
-from src import plot, utils
+from src import azure_blob, listmonk, plot, utils
 from src.constants import ISO3S
 from src.datasources import asap, ipc
 
 load_dotenv()
+BLOB_LATEST_CSV = "ds-rosea-thresholds/monitoring/summary.csv"
+BLOB_LATEST_TABLE = "ds-rosea-thresholds/monitoring/summary_table.png"
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -34,7 +36,7 @@ if __name__ == "__main__":
 
     # Check the latest file
     df_latest = stratus.load_csv_from_blob(
-        "ds-rosea-thresholds/monitoring/summary.csv",
+        BLOB_LATEST_CSV,
         parse_dates=["ipc_end_date", "ipc_start_date", "hotspot_date"],
     )
     diff = df_clean.compare(df_latest)
@@ -52,18 +54,16 @@ if __name__ == "__main__":
             gt.save(output_path, scale=4, window_size=[4000, 8000])
             # Save as the summary file
             with open(output_path, "rb") as data:
-                stratus.upload_blob_data(
-                    data, "ds-rosea-thresholds/monitoring/summary_table.png"
-                )
+                stratus.upload_blob_data(data, BLOB_LATEST_TABLE)
 
         # Save the CSV in the date folder and as a summary file
-        stratus.upload_csv_to_blob(
-            df_clean, blob_name="ds-rosea-thresholds/monitoring/summary.csv"
-        )
+        stratus.upload_csv_to_blob(df_clean, blob_name=BLOB_LATEST_CSV)
         stratus.upload_csv_to_blob(
             df_clean,
             blob_name=f"ds-rosea-thresholds/monitoring/{pd.Timestamp.now().strftime('%Y%m%d')}/summary.csv",
         )
-        print("Updated files saved to blob!")
+        print("Updated files saved to blob! Sending emails...")
+        image_url = azure_blob.get_blob_url(BLOB_LATEST_TABLE)
+        listmonk.send_rosea_campaign(image_url)
     else:
-        print("No new changes detected! Keeping old summary file.")
+        print("No new changes detected! Keeping old summary file. No emails sent.")
