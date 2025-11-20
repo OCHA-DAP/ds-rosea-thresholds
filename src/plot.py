@@ -57,13 +57,13 @@ def summary_table(df, changes_df=None):
                     new_val = changes_df.loc[idx, (col, "self")]
                     try:
                         if severity_order[old_val] < severity_order[new_val]:
-                            df_display.loc[
-                                idx, "country"
-                            ] += ' <span style="color: red;">▲</span>'
+                            df_display.loc[idx, "country"] += (
+                                ' <span style="color: red;">▲</span>'
+                            )
                         elif severity_order[old_val] > severity_order[new_val]:
-                            df_display.loc[
-                                idx, "country"
-                            ] += ' <span style="color: green;">▼</span>'
+                            df_display.loc[idx, "country"] += (
+                                ' <span style="color: green;">▼</span>'
+                            )
                     except Exception:
                         break
                     break
