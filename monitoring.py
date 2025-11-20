@@ -167,8 +167,9 @@ def _(color_map, gdf_merged, px):
 
 
 @app.cell
-def _(mo):
-    mo.Html("<br><br><hr></hr>")
+def _(df_clean, mo, plot):
+    df_table = df_clean.drop(df_clean.columns[-9:], axis=1)
+    mo.accordion({"#### See summary table": plot.summary_table(df_table)})
     return
 
 
@@ -222,8 +223,10 @@ def _(country_select, mo, pd, plot, sel):
         value_vars=[
             "proportion_3+",
             "proportion_4+",
+            "proportion_5",
             "population_3+",
             "population_4+",
+            "population_5",
             "pt_change_3+",
             "pt_change_4+",
         ],
@@ -232,7 +235,9 @@ def _(country_select, mo, pd, plot, sel):
     )
 
     # Extract the phase (3+ or 4+) and metric type (proportion, population, pt_change)
-    df_pivot[["metric_type", "phase"]] = df_pivot["metric"].str.extract(r"(.+?)_(\d\+)")
+    df_pivot[["metric_type", "phase"]] = df_pivot["metric"].str.extract(
+        r"(.+?)_(\d+\+?)"
+    )
     df_pivot = (
         df_pivot.pivot_table(
             index=["index", "country", "iso3", "phase"],
