@@ -224,6 +224,11 @@ def _(mo):
 
 
 @app.cell
+def _():
+    return
+
+
+@app.cell
 def _(get_ipc_from_hapi, get_pop, iso3s):
     # Get all IPC data
     df_all = get_ipc_from_hapi()
@@ -249,6 +254,12 @@ def _(get_ipc_from_hapi, get_pop, iso3s):
     ]
     df_pop = df_pop[df_pop.location_code != "ZWE"]
     return df_all, df_pop
+
+
+@app.cell
+def _(df_all_):
+    df_all_
+    return
 
 
 @app.cell
@@ -350,7 +361,7 @@ def _(combine_4_plus, df_all, df_pop, np, pd):
     df_all_wide["approx_prop_analyzed"] = np.round(
         df_all_wide["population_analyzed"] / df_all_wide["population"], 2
     )
-    return df_all_long, df_all_wide
+    return df_all_, df_all_long, df_all_wide
 
 
 @app.cell
