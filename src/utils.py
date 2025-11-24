@@ -14,7 +14,7 @@ def merge_ipc_hotspots(df_ipc, df_hs):
     df_merged["max_alert_level"] = (
         df_merged[["alert_level_hs", "alert_level_ipc"]]
         .apply(lambda x: x.map(alert_map))
-        .max(axis=1)
+        .max(axis=1, skipna=True)
         .map(reverse_map)
     )
 

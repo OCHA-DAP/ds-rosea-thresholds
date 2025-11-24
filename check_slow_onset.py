@@ -23,7 +23,7 @@ if __name__ == "__main__":
     print("Checking hotspots...")
     df_hs_raw = asap.get_hotspots(filter_countries=list(ISO3S.keys()))
     df_hs_classified = asap.classify_hotspots(df_hs_raw)
-    df_hs_latest = asap.proccess_latest_hotspots(df_hs_classified)
+    df_hs_latest = asap.process_latest_hotspots(df_hs_classified)
 
     print("Checking IPC...")
     df_ipc_raw = ipc.get_reports(filter_iso3s=list(ISO3S.values()))

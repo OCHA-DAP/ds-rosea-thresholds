@@ -60,5 +60,5 @@ def send_rosea_campaign(body_html):
             json={"status": "running"},
             auth=(LISTMONK_API_UID, LISTMONK_API_KEY),
         )
-    print("campaign sent!")
+        print("campaign sent!")
     return send_response

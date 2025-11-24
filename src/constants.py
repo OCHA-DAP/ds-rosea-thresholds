@@ -25,18 +25,20 @@ HIGH_CONSEC = 3
 
 # ----- IPC Thresholds -----
 
-# Very high - severe
-VH_S_POP_4 = 500000
-# Very high - deteriorating
-VH_D_PR_3 = 0.25
-VH_D_IN_4 = 0.03
+# Very high
+VH_S_POP_4 = 500000  # Severe case. IPC population in 4+
+VH_D_PR_3 = 0.25  # Deteriorating case. IPC proportion of population in 3+
+VH_D_IN_4 = 0.03  # Deteriorating case. IPC increase in 4+ population
 
-# High - severe
-H_S_POP_4 = 200000
-# High - deteriorating
-H_D_PR_3 = 0.25
-H_D_IN_3 = 0.05
+# High
+H_S_POP_4 = 200000  # Severe case. IPC population in 4+
+H_D_PR_3 = 0.25  # Deteriorating case. IPC proportion of population in 3+
+H_D_IN_3 = 0.05  # Deteriorating case. IPC increase in 3+ population
 
 # Medium
-M_PR_3 = 0.18
-M_POP_4 = 50000
+M_PR_3 = 0.18  # IPC proportion of population in 3+
+M_POP_4 = 50000  # IPC population in 4+
+
+# We only calculate population differences when they are within 10% of each other
+# This threshold is copied from Signals
+POP_THRESH = 0.1

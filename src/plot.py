@@ -64,7 +64,8 @@ def summary_table(df, changes_df=None):
                             df_display.loc[idx, "country"] += (
                                 ' <span style="color: green;">▼</span>'
                             )
-                    except Exception:
+                    except Exception as e:
+                        print(f"Error: {e}")
                         break
                     break
 

@@ -45,7 +45,7 @@ def classify_hotspots(df):
     return _df
 
 
-def proccess_latest_hotspots(df):
+def process_latest_hotspots(df):
     _df = df.copy()
     last = pd.Timestamp.now() - pd.DateOffset(months=1)
     _df = _df[_df["date"].dt.to_period("M") == last.to_period("M")]

@@ -10,6 +10,7 @@ from src.constants import (
     H_S_POP_4,
     M_POP_4,
     M_PR_3,
+    POP_THRESH,
     VH_D_IN_4,
     VH_D_PR_3,
     VH_S_POP_4,
@@ -113,11 +114,11 @@ def _classify_row(row):
     D3 = row.get("pt_change_3+", np.nan)
     D4 = row.get("pt_change_4+", np.nan)
 
-    VH_S = PP4 >= VH_S_POP_4
-    VH_D = P3 >= VH_D_PR_3 and D4 >= VH_D_IN_4 * 100
-    H_S = PP4 >= H_S_POP_4
-    H_D = P3 >= H_D_PR_3 and D3 >= H_D_IN_3 * 100
-    M = (P3 >= M_PR_3) or (PP4 >= M_POP_4)
+    VH_S = PP4 >= VH_S_POP_4  # Very high, severe
+    VH_D = P3 >= VH_D_PR_3 and D4 >= VH_D_IN_4 * 100  # Very high, deteriorating
+    H_S = PP4 >= H_S_POP_4  # High, severe
+    H_D = P3 >= H_D_PR_3 and D3 >= H_D_IN_3 * 100  # High, deteriorating
+    M = (P3 >= M_PR_3) or (PP4 >= M_POP_4)  # Medium
 
     if VH_S and VH_D:
         return "very high - all criteria"
@@ -155,12 +156,10 @@ def _transform_wide(df):
     ).reset_index()
     df_all_wide = df_all_wide.sort_values(["location_code", "From"])
 
-    # Check that it's half the length, because we made the 3+ and 4+
-    # categories wide
-    # assert len(df_all_wide) == (len(_df) / 2)
+    # Check that it's one third the length,
+    # because we made the 3+, 4+, and 5 categories wide
+    assert len(df_all_wide) == (len(_df) / 3)
 
-    # Calculate if populations are comparable (within 10%)
-    POP_THRESH = 0.1
     df_all_wide["pop_comparable"] = (
         abs(df_all_wide.groupby("location_code")["population_analyzed"].diff())
         / df_all_wide.groupby("location_code")["population_analyzed"].shift()
