@@ -31,8 +31,9 @@ def ipc_table(df, title):
                 Updated as of {cur.strftime("%-d %b %Y")}. Referencing the latest data
                 that overlaps with the current date. See further details from the
                 <a href='https://www.ipcinfo.org/ipc-country-analysis/en/'>IPC website
-                </a>.<br><br> * A value of 0 may also indicate that no comparison
-                could be made due to large differences in analyzed populations.
+                </a>.<br><br> * Null values are present when the population analyzed in
+                the previous IPC report is more than 10%
+                different than the current report.
                 """
             )
         )
@@ -43,6 +44,19 @@ def summary_table(df, changes_df=None):
     cur = pd.Timestamp.now()
 
     df_display = df.copy()
+    df_display["ipc_type"] = df["ipc_type"].replace(
+        {
+            "first projection": "1st projection",
+            "second projection": "2nd projection",
+        }
+    )
+
+    # Combine date columns into a range
+    df_display["ipc_date_range"] = (
+        df_display["ipc_start_date"].dt.strftime("%-d %b %Y")
+        + " - "
+        + df_display["ipc_end_date"].dt.strftime("%-d %b %Y")
+    )
 
     # Add direction column
     if changes_df is not None:
@@ -71,7 +85,9 @@ def summary_table(df, changes_df=None):
 
     gt = (
         GT(
-            df_display.drop(columns=["hotspot_comment", "iso3"]),
+            df_display.drop(
+                columns=["hotspot_comment", "iso3", "ipc_start_date", "ipc_end_date"]
+            ),
             rowname_col="country",
         )
         .cols_label(
@@ -79,8 +95,7 @@ def summary_table(df, changes_df=None):
             alert_level_ipc=html("IPC Alert Level"),
             max_alert_level=html("Maximum Alert Level"),
             ipc_type=html("IPC Projection"),
-            ipc_end_date=html("IPC Period End Date"),
-            ipc_start_date=html("IPC Period Start Date"),
+            ipc_date_range=html("IPC Period"),
             hotspot_date=html("Hotspot Date"),
         )
         .fmt_date(
@@ -142,6 +157,9 @@ def summary_table(df, changes_df=None):
         )
         .tab_source_note(
             source_note=html(f"Updated as of {cur.strftime('%-d %b %Y')}.")
+        )
+        .tab_options(
+            table_font_size="16px",
         )
     )
 

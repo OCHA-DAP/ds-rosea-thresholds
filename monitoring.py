@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.17.7"
+__generated_with = "0.15.2"
 app = marimo.App(css_file="assets/custom.css")
 
 
@@ -243,6 +243,7 @@ def _(country_select, mo, pd, plot, sel):
             columns="metric_type",
             values="value",
             aggfunc="first",
+            dropna=False,
         )
         .reset_index()
         .drop(columns=["country", "iso3", "index"])
@@ -255,7 +256,11 @@ def _(country_select, mo, pd, plot, sel):
 @app.cell
 def _(mo, sel):
     summary_text = sel["hotspot_comment"][0]
-    mo.md(summary_text)
+    mo.md(f"""
+        **ASAP Hotspot Summary: **{summary_text}
+        **See [ASAP Website](https://agricultural-production-hotspots.ec.europa.eu/index.php)
+        for more details.**
+        """)
     return
 
 

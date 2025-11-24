@@ -24,6 +24,8 @@ ISO3S = {
 HIGH_CONSEC = 3
 
 # ----- IPC Thresholds -----
+# See the notebooks in examples/ for the analysis where these thresholds
+# were set
 
 # Very high
 VH_S_POP_4 = 500000  # Severe case. IPC population in 4+

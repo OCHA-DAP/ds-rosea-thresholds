@@ -117,25 +117,27 @@ def _classify_row(row):
     D3 = row.get("pt_change_3+", np.nan)
     D4 = row.get("pt_change_4+", np.nan)
 
-    VH_S = PP4 >= VH_S_POP_4  # Very high, severe
-    VH_D = P3 >= VH_D_PR_3 and D4 >= VH_D_IN_4 * 100  # Very high, deteriorating
-    H_S = PP4 >= H_S_POP_4  # High, severe
-    H_D = P3 >= H_D_PR_3 and D3 >= H_D_IN_3 * 100  # High, deteriorating
-    M = (P3 >= M_PR_3) or (PP4 >= M_POP_4)  # Medium
+    very_high_severe = PP4 >= VH_S_POP_4
+    very_high_deteriorating = P3 >= VH_D_PR_3 and (
+        pd.notna(D4) and D4 >= VH_D_IN_4 * 100
+    )
+    high_severe = PP4 >= H_S_POP_4
+    high_deteriorating = P3 >= H_D_PR_3 and (pd.notna(D3) and D3 >= H_D_IN_3 * 100)
+    medium = (P3 >= M_PR_3) or (PP4 >= M_POP_4)
 
-    if VH_S and VH_D:
+    if very_high_severe and very_high_deteriorating:
         return "very high - all criteria"
-    elif VH_S:
+    elif very_high_severe:
         return "very high - emergency"
-    elif VH_D:
+    elif very_high_deteriorating:
         return "very high - deteriorating"
-    elif H_S and H_D:
+    elif high_severe and high_deteriorating:
         return "high - all criteria"
-    elif H_S:
+    elif high_severe:
         return "high - emergency"
-    elif H_D:
+    elif high_deteriorating:
         return "high - deteriorating"
-    elif M:
+    elif medium:
         return "medium"
     return "low"
 
@@ -209,8 +211,8 @@ def _transform_wide(df):
             pd.to_numeric(df_all_wide[col], errors="coerce").round().astype("Int64")
         )
 
-    df_all_wide["pt_change_3+"] = df_all_wide["pt_change_3+"].fillna(0)
-    df_all_wide["pt_change_4+"] = df_all_wide["pt_change_4+"].fillna(0)
+    # df_all_wide["pt_change_3+"] = df_all_wide["pt_change_3+"].fillna(0)
+    # df_all_wide["pt_change_4+"] = df_all_wide["pt_change_4+"].fillna(0)
     return df_all_wide
 
 
