@@ -28,13 +28,16 @@ def get_reports(filter_iso3s=None):
         "limit": 10000,
         "offset": 0,
     }
-    # Check if the request was successful
-    response = requests.get(endpoint, params=params)
+    all_data = []
+    while True:
+        response = requests.get(endpoint, params=params)
+        data_list = response.json().get("data", [])
+        if not data_list:
+            break
+        all_data.extend(data_list)
+        params["offset"] += params["limit"]
 
-    json_data = response.json()
-    # Extract the data list from the JSON
-    data_list = json_data.get("data", [])
-    df_response = pd.DataFrame(data_list)
+    df_response = pd.DataFrame(all_data)
 
     df_response["From"] = pd.to_datetime(df_response["reference_period_start"])
     df_response["To"] = pd.to_datetime(df_response["reference_period_end"])
