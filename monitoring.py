@@ -76,8 +76,10 @@ def _(HTTPFileSystem, gpd, mo):
 
 
 @app.cell
-def _(gpd, stratus):
-    gdf = gpd.read_parquet("assets/admin_bounds.parquet")
+def _(stratus):
+    gdf = stratus.load_geoparquet_from_blob(
+        "ds-rosea-thresholds/monitoring/admin_bounds.parquet", stage="dev"
+    )
 
     df_clean = stratus.load_csv_from_blob(
         "ds-rosea-thresholds/monitoring/summary.csv",

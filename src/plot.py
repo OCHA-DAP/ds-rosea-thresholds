@@ -31,9 +31,10 @@ def ipc_table(df, title):
                 Updated as of {cur.strftime("%-d %b %Y")}. Referencing the latest data
                 that overlaps with the current date. See further details from the
                 <a href='https://www.ipcinfo.org/ipc-country-analysis/en/'>IPC website
-                </a>.<br><br> * Null values are present when the population analyzed in
-                the previous IPC report is more than 10%
-                different than the current report.
+                </a>.<br><br> * A value of 0 indicates no change from the previous
+                report. Null values indicate the comparison could not be made
+                because the two reports analyzed significantly different
+                population sizes (>10% difference).
                 """
             )
         )
