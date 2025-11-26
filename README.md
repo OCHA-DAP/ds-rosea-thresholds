@@ -11,6 +11,17 @@ uv sync
 uv run pre-commit install
 ```
 
+This code needs the following environment variables to run:
+
+```
+DSCI_AZ_BLOB_DEV_SAS=""
+DSCI_AZ_BLOB_DEV_SAS_WRITE=""
+HAPI_APP_IDENTIFIER=""
+LISTMONK_API_KEY=""
+LISTMONK_API_UID=""
+LISTMONK_URL=""
+```
+
 ## Development
 
 **Run code:**
