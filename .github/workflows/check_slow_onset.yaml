@@ -20,8 +20,6 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: pipeline
       - uses: astral-sh/setup-uv@v2
       - name: Run monitoring check
         env:
