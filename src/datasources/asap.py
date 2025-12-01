@@ -47,13 +47,11 @@ def classify_hotspots(df):
 
 def process_latest_hotspots(df):
     _df = df.copy()
-    last = pd.Timestamp.now() - pd.DateOffset(months=1)
-    _df = _df[_df["date"].dt.to_period("M") == last.to_period("M")]
+    _df = _df[_df["date"] == _df["date"].max()]
     _df["location_code"] = _df["country"].map(ISO3S)
-
-    assert _df.date.max() == df.date.max()
     assert _df.date.nunique() == 1
     print(
         f"Hotspots from {_df.date.unique()[0]} across {_df.country.nunique()} countries"
     )
+    print(f"Hotspots from {_df.date.max()}")
     return _df

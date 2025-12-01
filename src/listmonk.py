@@ -61,4 +61,8 @@ def send_rosea_campaign(body_html):
             auth=(LISTMONK_API_UID, LISTMONK_API_KEY),
         )
         print("campaign sent!")
-    return send_response
+        return send_response
+    else:
+        print("failed to create campaign")
+        print(campaign_data)
+        return response
