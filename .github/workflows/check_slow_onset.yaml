@@ -20,7 +20,7 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v2
+      - uses: astral-sh/setup-uv@v5
       - name: Run monitoring check
         env:
           HAPI_APP_IDENTIFIER: ${{ secrets.HAPI_APP_IDENTIFIER }}
