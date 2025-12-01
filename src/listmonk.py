@@ -23,8 +23,12 @@ def generate_rosea_content(table_html):
         <p>You can also find more detailed, country-level information on
         <a href='{DASHBOARD_URL}'>
         this dashboard</a>.</p>
+        <p>See more information from original data sources on the 
+        <a href='https://agricultural-production-hotspots.ec.europa.eu/'>ASAP Website</a>
+        and the <a href='https://www.ipcinfo.org'>IPC Website</a>.
+        </p>
     </div>
-    """
+    """  # noqa
     return intro_html + table_html
 
 

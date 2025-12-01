@@ -154,7 +154,9 @@ def summary_table(df, changes_df=None):
             ),
         )
         .tab_header(
-            title=md("Alert Summary, Per Country. Combined Hotspot and IPC Alerts."),
+            title=md(
+                "Alert Summary, Per Country. Combined ASAP Hotspot and IPC Alerts."
+            ),
         )
         .tab_source_note(
             source_note=html(f"Updated as of {cur.strftime('%-d %b %Y')}.")
