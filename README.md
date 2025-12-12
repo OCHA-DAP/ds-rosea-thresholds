@@ -1,8 +1,10 @@
 # ds-rosea-thresholds
 Country-based support for slow onset and sudden onset shocks. Here [here](https://docs.google.com/document/d/1Wv9JIuk6V0tafRB9FLuB6jcy_EwBU7_iXYqQuOAJeBI/edit?tab=t.0#heading=h.ieffsjdjd8lt) for a description of the 
-data processing methodology used to classify countries into various risk levels.
+data processing methodology used to classify countries into various risk levels (slow onset).
 
 Runs daily monitoring and sends emails in the event of a change in risk level for a given country.
+
+[This marimo notebook](https://rosea-monitoring-slow-onset-fqejb9gkb8d7ecc3.eastus2-01.azurewebsites.net/) shows the latest updates for slow onset shocks.
 
 ## Setup
 
@@ -28,7 +30,7 @@ LISTMONK_URL=""
 ### Run slow onset monitoring
 
 ```
-uv python run check_slow_onset.py
+uv run python check_slow_onset.py
 ```
 
 ### Run slow onset monitoring notebook

@@ -29,7 +29,18 @@ def generate_rosea_content(table_html):
         </p>
     </div>
     """  # noqa
-    return intro_html + table_html
+
+    exit_html = """
+    <div>
+        <p>These emails are sent anytime new data is available.
+        Updates are highlighted in the table above with a black
+        outline, with any changes in the Maximum Alert Level
+        also indicated by a directional (up/down) arrow. Data
+        updates may be shared without any changes in
+        Maximum Alert Level.</p>
+    </div>
+    """  # noqa
+    return intro_html + table_html + exit_html
 
 
 def send_rosea_campaign(body_html):
