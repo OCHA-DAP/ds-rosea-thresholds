@@ -56,11 +56,11 @@ def send_rosea_campaign(body_html):
 
     if TEST:
         print("Sending email to TEST list...")
-        listmonk_list = [LISTMONK_TEST_LIST, DS_TEAM_LIST]
+        listmonk_list = [LISTMONK_TEST_LIST]
         campaign_name_suffix = " [TEST]"
     else:
         print("Sending email to ROSEA distribution list...")
-        listmonk_list = [LISTMONK_LIST]
+        listmonk_list = [LISTMONK_LIST, DS_TEAM_LIST]
         campaign_name_suffix = ""
 
     cur = pd.Timestamp.now().strftime("%-d %b %y")
