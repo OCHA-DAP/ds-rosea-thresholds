@@ -27,6 +27,13 @@ LISTMONK_API_UID=""
 LISTMONK_URL=""
 ```
 
+Additionally, the following environment variable can be set to determine whether
+emails get sent to a "test" email distribution list or not:
+
+```
+TEST_LIST="true"
+```
+
 ### Run slow onset monitoring
 
 ```
