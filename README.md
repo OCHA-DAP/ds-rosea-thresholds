@@ -36,8 +36,17 @@ TEST_LIST="true"
 
 ### Run slow onset monitoring
 
+Run the following script to check the slow onset thresholds and send an email in
+the case of updates. 
+
 ```
 uv run python check_slow_onset.py
+```
+
+To force an email, even if no recent updates:
+
+```
+uv run python check_slow_onset.py --force
 ```
 
 ### Run slow onset monitoring notebook
