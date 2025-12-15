@@ -7,6 +7,8 @@ from src.utils import load_boolean_env
 
 LISTMONK_TEST_LIST = 12
 LISTMONK_LIST = 13
+DS_TEAM_LIST = 6
+
 LISTMONK_TEMPLATE_ID = 8
 METHODS_URL = "https://docs.google.com/document/d/1Wv9JIuk6V0tafRB9FLuB6jcy_EwBU7_iXYqQuOAJeBI/edit?usp=sharing"
 DASHBOARD_URL = (
@@ -54,18 +56,18 @@ def send_rosea_campaign(body_html):
 
     if TEST:
         print("Sending email to TEST list...")
-        listmonk_list = LISTMONK_TEST_LIST
+        listmonk_list = [LISTMONK_TEST_LIST, DS_TEAM_LIST]
         campaign_name_suffix = " [TEST]"
     else:
         print("Sending email to ROSEA distribution list...")
-        listmonk_list = LISTMONK_LIST
+        listmonk_list = [LISTMONK_LIST]
         campaign_name_suffix = ""
 
     cur = pd.Timestamp.now().strftime("%-d %b %y")
     campaign = {
         "name": f"ROSEA {cur} (SO) {campaign_name_suffix}",
         "subject": f"ROSEA Slow Onset Monitoring - {cur}",
-        "lists": [listmonk_list],
+        "lists": listmonk_list,
         "type": "regular",
         "content_type": "richtext",
         "body": body_html,
