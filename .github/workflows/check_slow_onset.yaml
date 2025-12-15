@@ -13,10 +13,10 @@ on:
         options:
           - 'true'
           - 'false'
-      TEST_LIST:
-        description: 'Whether to use the test mailing list'
+      TEST_EMAIL:
+        description: 'Whether to send the email as a test'
         required: false
-        default: 'false'
+        default: 'true'
         type: choice
         options:
           - 'true'
@@ -37,5 +37,5 @@ jobs:
           LISTMONK_API_KEY: ${{ secrets.LISTMONK_API_KEY }}
           LISTMONK_API_UID: ${{ secrets.LISTMONK_API_UID }}
           LISTMONK_URL: ${{ secrets.LISTMONK_URL }}
-          TEST_LIST: ${{ github.event.inputs.TEST_LIST }}
-        run: uv run check_slow_onset.py ${{ github.event.inputs.force == 'true' && '--force' || '' }}
+          TEST_EMAIL: ${{ github.inputs.TEST_EMAIL || vars.TEST_EMAIL || 'true' }}
+        run: uv run check_slow_onset.py ${{ github.inputs.force == 'true' && '--force' || '' }}

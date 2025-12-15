@@ -52,7 +52,7 @@ def send_rosea_campaign(body_html):
     LISTMONK_URL = os.getenv("LISTMONK_URL")
     LISTMONK_API_KEY = os.getenv("LISTMONK_API_KEY")
     LISTMONK_API_UID = os.getenv("LISTMONK_API_UID")
-    TEST = load_boolean_env("TEST_LIST", True)
+    TEST = load_boolean_env("TEST_EMAIL", True)
 
     if TEST:
         print("Sending email to TEST list...")

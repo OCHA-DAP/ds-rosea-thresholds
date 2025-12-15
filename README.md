@@ -31,7 +31,7 @@ Additionally, the following environment variable can be set to determine whether
 emails get sent to a "test" email distribution list or not:
 
 ```
-TEST_LIST="true"
+TEST_EMAIL="true"
 ```
 
 ### Run slow onset monitoring
