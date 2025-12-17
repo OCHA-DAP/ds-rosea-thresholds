@@ -27,10 +27,26 @@ LISTMONK_API_UID=""
 LISTMONK_URL=""
 ```
 
+Additionally, the following environment variable can be set to determine whether
+emails get sent to a "test" email distribution list or not:
+
+```
+TEST_EMAIL="true"
+```
+
 ### Run slow onset monitoring
+
+Run the following script to check the slow onset thresholds and send an email in
+the case of updates. 
 
 ```
 uv run python check_slow_onset.py
+```
+
+To force an email, even if no recent updates:
+
+```
+uv run python check_slow_onset.py --force
 ```
 
 ### Run slow onset monitoring notebook
