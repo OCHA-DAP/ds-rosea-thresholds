@@ -13,8 +13,8 @@ on:
         options:
           - 'true'
           - 'false'
-      test:
-        description: 'Simulate a data change for testing PR creation'
+      FORCE_TRIGGER:
+        description: 'Force trigger for testing (adds "test" label to PR)'
         required: false
         default: 'false'
         type: choice
@@ -32,7 +32,7 @@ jobs:
       - name: Run monitoring check
         env:
           HAPI_APP_IDENTIFIER: ${{ secrets.HAPI_APP_IDENTIFIER }}
-        run: uv run check_slow_onset.py ${{ github.event.inputs.force == 'true' && '--force' || '' }} ${{ github.event.inputs.test == 'true' && '--test' || '' }}
+        run: uv run check_slow_onset.py ${{ github.event.inputs.force == 'true' && '--force' || '' }}
       - name: Create PR if data changed
         run: |
           git add data/
@@ -40,12 +40,17 @@ jobs:
             echo "No changes to commit"
             exit 0
           fi
-          BRANCH="data-update-$(date +%Y%m%d-%H%M%S)"
+          BRANCH="data-update-$(date +%Y%m%d)"
           git checkout -b "$BRANCH"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git commit -m "Update monitoring data"
           git push -u origin "$BRANCH"
-          gh pr create --title "Update monitoring data" --body "Automated data update from slow onset check." --label "send-email"
+          LABELS="send-email"
+          if [ "$FORCE_TRIGGER" = "true" ]; then
+            LABELS="$LABELS,test"
+          fi
+          gh pr create --title "Update monitoring data" --body "Automated data update from slow onset check." --label "$LABELS"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FORCE_TRIGGER: ${{ github.event.inputs.FORCE_TRIGGER || 'false' }}
