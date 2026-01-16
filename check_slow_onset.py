@@ -1,4 +1,5 @@
 import argparse
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -34,6 +35,11 @@ if __name__ == "__main__":
 
     print("Merging all data")
     df_clean = utils.merge_ipc_hotspots(df_hs=df_hs_latest, df_ipc=df_ipc_latest)
+
+    # Artificially modify data to force a change when FORCE_TRIGGER is set
+    if os.getenv("FORCE_TRIGGER", "false").lower() == "true":
+        print("FORCE_TRIGGER: artificially modifying data to create a diff...")
+        df_clean.loc[df_clean.index[-1], "hotspot_date"] += pd.Timedelta(days=1)
 
     # Ensure data directory exists
     DATA_DIR.mkdir(exist_ok=True)

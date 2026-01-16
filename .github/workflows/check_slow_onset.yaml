@@ -14,7 +14,7 @@ on:
           - 'true'
           - 'false'
       FORCE_TRIGGER:
-        description: 'Force trigger for testing (adds "test" label to PR)'
+        description: 'FORCE_TRIGGER'
         required: false
         default: 'false'
         type: choice
@@ -32,6 +32,7 @@ jobs:
       - name: Run monitoring check
         env:
           HAPI_APP_IDENTIFIER: ${{ secrets.HAPI_APP_IDENTIFIER }}
+          FORCE_TRIGGER: ${{ github.event.inputs.FORCE_TRIGGER || 'false' }}
         run: uv run check_slow_onset.py ${{ github.event.inputs.force == 'true' && '--force' || '' }}
       - name: Create PR if data changed
         run: |
