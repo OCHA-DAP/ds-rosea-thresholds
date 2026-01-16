@@ -1,10 +1,10 @@
 # ROSEA Threshold Monitoring
-Country-based support for slow onset and sudden onset shocks. Here [here](https://docs.google.com/document/d/1Wv9JIuk6V0tafRB9FLuB6jcy_EwBU7_iXYqQuOAJeBI/edit?tab=t.0#heading=h.ieffsjdjd8lt) for a description of the 
+Country-based support for slow onset and sudden onset shocks. See [here](https://docs.google.com/document/d/1Wv9JIuk6V0tafRB9FLuB6jcy_EwBU7_iXYqQuOAJeBI/edit?tab=t.0#heading=h.ieffsjdjd8lt) for a description of the 
 data processing methodology used to classify countries into various risk levels (slow onset).
 
-Runs daily monitoring and sends emails in the event of a change in risk level for a given country.
+Runs daily monitoring and sends emails in the event of data updates for a given country.
 
-[This marimo notebook](https://rosea-monitoring-slow-onset-fqejb9gkb8d7ecc3.eastus2-01.azurewebsites.net/) shows the latest updates for slow onset shocks.
+[This page](https://ocha-dap.github.io/ds-rosea-thresholds/) summarizes current conditions for slow onset shocks.
 
 ## Setup
 
@@ -60,11 +60,6 @@ uv run python send_email.py
 This reads `data/current.csv` and `data/previous.csv`, generates a summary table
 highlighting any differences, and sends the email via Listmonk.
 
-### Run slow onset monitoring notebook
-
-```
-uv run marimo run monitoring.py
-```
 
 ## Development
 
