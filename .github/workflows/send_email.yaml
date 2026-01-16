@@ -1,0 +1,28 @@
+name: Send Email
+
+on:
+  workflow_dispatch:
+    inputs:
+      TEST_EMAIL:
+        description: 'Whether to send the email as a test'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+jobs:
+  send-email:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Send email
+        env:
+          LISTMONK_API_KEY: ${{ secrets.LISTMONK_API_KEY }}
+          LISTMONK_API_UID: ${{ secrets.LISTMONK_API_UID }}
+          LISTMONK_URL: ${{ secrets.LISTMONK_URL }}
+          TEST_EMAIL: ${{ github.event.inputs.TEST_EMAIL || 'true' }}
+        run: uv run send_email.py

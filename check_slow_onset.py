@@ -3,9 +3,8 @@ from pathlib import Path
 
 import pandas as pd
 from dotenv import load_dotenv
-from great_tables import GT
 
-from src import listmonk, plot, utils
+from src import utils
 from src.constants import ISO3S
 from src.datasources import asap, ipc
 
@@ -54,20 +53,14 @@ if __name__ == "__main__":
         has_changes = True
 
     if has_changes or args.force:
-        print("Alert! Writing new outputs...")
+        print("Changes detected! Writing new outputs...")
         if args.force:
             print("Forcing update...")
-
-        df_table = df_clean.drop(df_clean.columns[-9:], axis=1)
-        gt = plot.summary_table(df_table, diff)
 
         # Rotate current.csv to previous.csv, then save new current.csv
         if CURRENT_CSV.exists():
             CURRENT_CSV.rename(PREVIOUS_CSV)
         df_clean.to_csv(CURRENT_CSV, index=False)
-        print("Updated files saved locally! Sending emails...")
-        gt_html = GT.as_raw_html(gt)
-        body_content = listmonk.generate_rosea_content(gt_html)
-        listmonk.send_rosea_campaign(body_content)
+        print("Updated files saved locally.")
     else:
-        print("No new changes detected! Keeping old summary file. No emails sent.")
+        print("No new changes detected. Keeping existing files.")
