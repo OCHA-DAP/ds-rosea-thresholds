@@ -1,4 +1,3 @@
-import argparse
 import os
 from pathlib import Path
 
@@ -17,12 +16,6 @@ CURRENT_CSV = DATA_DIR / "current.csv"
 PREVIOUS_CSV = DATA_DIR / "previous.csv"
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--force", action="store_true", help="Force update even if no changes detected"
-    )
-    args = parser.parse_args()
-
     print("Checking hotspots...")
     df_hs_raw = asap.get_hotspots(filter_countries=list(ISO3S.keys()))
     df_hs_classified = asap.classify_hotspots(df_hs_raw)
@@ -58,10 +51,8 @@ if __name__ == "__main__":
         diff = None
         has_changes = True
 
-    if has_changes or args.force:
+    if has_changes:
         print("Changes detected! Writing new outputs...")
-        if args.force:
-            print("Forcing update...")
 
         # Rotate current.csv to previous.csv, then save new current.csv
         if CURRENT_CSV.exists():
