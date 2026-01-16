@@ -50,11 +50,16 @@ jobs:
           git push -u origin "$BRANCH"
 
           LABELS="send-email"
+          BASE_BRANCH="save-file"
           if [ "$FORCE_TRIGGER" = "true" ]; then
             LABELS="$LABELS,test"
+            # Create a new base branch off save-file for testing
+            BASE_BRANCH="test-base-$(date +%Y%m%d-%H%M%S)"
+            git branch "$BASE_BRANCH" save-file
+            git push origin "$BASE_BRANCH"
           fi
 
-          PR_URL=$(gh pr create --title "Update monitoring data" --body "Automated data update from slow onset check." --label "$LABELS" --base save-file)
+          PR_URL=$(gh pr create --title "Update monitoring data" --body "Automated data update from slow onset check." --label "$LABELS" --base "$BASE_BRANCH")
           if [ -n "$PR_REVIEWER" ]; then
             gh pr edit "$PR_URL" --add-reviewer "$PR_REVIEWER"
           fi
