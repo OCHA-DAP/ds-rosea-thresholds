@@ -238,8 +238,8 @@
 
     <script>
         const COLORS = { 'low': '#2E8B57', 'medium': '#FF8C00', 'high': '#DC143C', 'very high': '#8B0000' };
-        const BASE_URL = window.location.hostname === 'localhost' || window.location.protocol === 'file:'
-            ? '' : 'https://raw.githubusercontent.com/OCHA-DAP/ds-rosea-thresholds/main/';
+        // Use relative paths - works for localhost, file://, and GitHub Pages
+        const BASE_URL = '';
 
         let currentData = [];
         let map = null;
