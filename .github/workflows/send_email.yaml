@@ -1,6 +1,11 @@
 name: Send Email
 
 on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       TEST_EMAIL:
@@ -15,6 +20,10 @@ on:
 jobs:
   send-email:
     runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'send-email'))
 
     steps:
       - uses: actions/checkout@v4
