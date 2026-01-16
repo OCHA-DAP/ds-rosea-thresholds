@@ -20,6 +20,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: save-file
       - uses: astral-sh/setup-uv@v5
       - name: Run monitoring check
         env:
@@ -33,16 +35,25 @@ jobs:
             echo "No changes to commit"
             exit 0
           fi
-          BRANCH="data-update-$(date +%Y%m%d)"
+
+          # Create branch name based on mode
+          if [ "$FORCE_TRIGGER" = "true" ]; then
+            BRANCH="test-run-$(date +%Y%m%d-%H%M%S)"
+          else
+            BRANCH="data-update-$(date +%Y%m%d)"
+          fi
           git checkout -b "$BRANCH"
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git commit -m "Update monitoring data"
           git push -u origin "$BRANCH"
+
           LABELS="send-email"
           if [ "$FORCE_TRIGGER" = "true" ]; then
             LABELS="$LABELS,test"
           fi
+
           PR_URL=$(gh pr create --title "Update monitoring data" --body "Automated data update from slow onset check." --label "$LABELS" --base save-file)
           if [ -n "$PR_REVIEWER" ]; then
             gh pr edit "$PR_URL" --add-reviewer "$PR_REVIEWER"
