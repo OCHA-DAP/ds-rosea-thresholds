@@ -43,12 +43,6 @@ uv run python check_slow_onset.py
 This compares freshly fetched data against `data/current.csv`. If changes are detected,
 it rotates `current.csv` to `previous.csv` and saves the new data as `current.csv`.
 
-Use `--force` to update the files even if no changes are detected:
-
-```
-uv run python check_slow_onset.py --force
-```
-
 ### Send email
 
 Run the following script to send an email based on the current data:
@@ -60,6 +54,25 @@ uv run python send_email.py
 This reads `data/current.csv` and `data/previous.csv`, generates a summary table
 highlighting any differences, and sends the email via Listmonk.
 
+
+## GitHub Actions
+
+### Check Slow Onset (`check_slow_onset.yaml`)
+Runs the monitoring check and creates a PR if data has changed.
+
+**Inputs:**
+- `FORCE_TRIGGER`: Force trigger for testing (adds "test" label to PR, artificially modifies data to create a diff)
+
+**Configuration:**
+- `PR_REVIEWER`: Repository variable (Settings → Secrets and variables → Actions → Variables) containing the GitHub username to request as a reviewer on auto-created PRs. If not set, no reviewer is requested.
+
+### Send Email (`send_email.yaml`)
+Sends an email notification when a PR with the `send-email` label is merged.
+
+**Inputs:**
+- `TEST_EMAIL`: Whether to send to the test email list
+
+The workflow automatically sets `TEST_EMAIL=true` if the merged PR has a `test` label.
 
 ## Development
 
