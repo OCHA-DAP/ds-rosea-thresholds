@@ -19,8 +19,6 @@ uv run pre-commit install
 This code needs the following environment variables to run:
 
 ```
-DSCI_AZ_BLOB_DEV_SAS=""
-DSCI_AZ_BLOB_DEV_SAS_WRITE=""
 HAPI_APP_IDENTIFIER=""
 LISTMONK_API_KEY=""
 LISTMONK_API_UID=""
@@ -34,20 +32,33 @@ emails get sent to a "test" email distribution list or not:
 TEST_EMAIL="true"
 ```
 
-### Run slow onset monitoring
+### Check for data updates
 
-Run the following script to check the slow onset thresholds and send an email in
-the case of updates. 
+Run the following script to check for new data and update the local CSV files:
 
 ```
 uv run python check_slow_onset.py
 ```
 
-To force an email, even if no recent updates:
+This compares freshly fetched data against `data/current.csv`. If changes are detected,
+it rotates `current.csv` to `previous.csv` and saves the new data as `current.csv`.
+
+Use `--force` to update the files even if no changes are detected:
 
 ```
 uv run python check_slow_onset.py --force
 ```
+
+### Send email
+
+Run the following script to send an email based on the current data:
+
+```
+uv run python send_email.py
+```
+
+This reads `data/current.csv` and `data/previous.csv`, generates a summary table
+highlighting any differences, and sends the email via Listmonk.
 
 ### Run slow onset monitoring notebook
 
