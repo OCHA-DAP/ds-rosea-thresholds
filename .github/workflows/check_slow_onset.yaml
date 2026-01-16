@@ -43,7 +43,11 @@ jobs:
           if [ "$FORCE_TRIGGER" = "true" ]; then
             LABELS="$LABELS,test"
           fi
-          gh pr create --title "Update monitoring data" --body "Automated data update from slow onset check." --label "$LABELS" --base save-file
+          PR_URL=$(gh pr create --title "Update monitoring data" --body "Automated data update from slow onset check." --label "$LABELS" --base save-file)
+          if [ -n "$PR_REVIEWER" ]; then
+            gh pr edit "$PR_URL" --add-reviewer "$PR_REVIEWER"
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FORCE_TRIGGER: ${{ github.event.inputs.FORCE_TRIGGER || 'false' }}
+          PR_REVIEWER: ${{ vars.PR_REVIEWER }}
