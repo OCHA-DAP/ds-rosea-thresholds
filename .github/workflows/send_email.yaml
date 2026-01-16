@@ -6,6 +6,7 @@ on:
       - closed
     branches:
       - save-file
+      - 'test-base-*'
   workflow_dispatch:
     inputs:
       TEST_EMAIL:
