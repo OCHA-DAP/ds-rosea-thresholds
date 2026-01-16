@@ -11,9 +11,7 @@ DS_TEAM_LIST = 6
 
 LISTMONK_TEMPLATE_ID = 8
 METHODS_URL = "https://docs.google.com/document/d/1Wv9JIuk6V0tafRB9FLuB6jcy_EwBU7_iXYqQuOAJeBI/edit?usp=sharing"
-DASHBOARD_URL = (
-    "https://rosea-monitoring-slow-onset-fqejb9gkb8d7ecc3.eastus2-01.azurewebsites.net/"
-)
+DASHBOARD_URL = "https://ocha-dap.github.io/ds-rosea-thresholds/"
 
 
 def generate_rosea_content(table_html):
