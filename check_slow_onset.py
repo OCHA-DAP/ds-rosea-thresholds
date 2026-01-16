@@ -20,6 +20,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--force", action="store_true", help="Force update even if no changes detected"
     )
+    parser.add_argument(
+        "--test",
+        action="store_true",
+        help="Simulate a data change for testing PR creation",
+    )
     args = parser.parse_args()
 
     print("Checking hotspots...")
@@ -34,6 +39,11 @@ if __name__ == "__main__":
 
     print("Merging all data")
     df_clean = utils.merge_ipc_hotspots(df_hs=df_hs_latest, df_ipc=df_ipc_latest)
+
+    # Simulate a data change for testing PR creation
+    if args.test:
+        print("Test mode: simulating data change...")
+        df_clean.loc[df_clean.index[-1], "hotspot_date"] += pd.Timedelta(days=1)
 
     # Ensure data directory exists
     DATA_DIR.mkdir(exist_ok=True)

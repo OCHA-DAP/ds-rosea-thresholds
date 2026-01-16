@@ -13,6 +13,14 @@ on:
         options:
           - 'true'
           - 'false'
+      test:
+        description: 'Simulate a data change for testing PR creation'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
 
 jobs:
   check-monitoring:
@@ -24,7 +32,7 @@ jobs:
       - name: Run monitoring check
         env:
           HAPI_APP_IDENTIFIER: ${{ secrets.HAPI_APP_IDENTIFIER }}
-        run: uv run check_slow_onset.py ${{ github.event.inputs.force == 'true' && '--force' || '' }}
+        run: uv run check_slow_onset.py ${{ github.event.inputs.force == 'true' && '--force' || '' }} ${{ github.event.inputs.test == 'true' && '--test' || '' }}
       - name: Create PR if data changed
         run: |
           git add data/
