@@ -79,8 +79,8 @@ def summary_table(df, changes_df=None):
                             df_display.loc[idx, "country"] += (
                                 ' <span style="color: green;">▼</span>'
                             )
-                    except Exception as e:
-                        print(f"Error: {e}")
+                    except KeyError as e:
+                        print(f"No change in alert level for {idx}: {e}")
                         break
                     break
 
