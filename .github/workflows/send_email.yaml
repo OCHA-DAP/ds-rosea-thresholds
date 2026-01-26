@@ -5,7 +5,7 @@ on:
     types:
       - closed
     branches:
-      - save-file
+      - main
       - 'test-base-*'
   workflow_dispatch:
     inputs:

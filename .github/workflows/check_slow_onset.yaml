@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: save-file
+          ref: main
       - uses: astral-sh/setup-uv@v5
       - name: Run monitoring check
         env:
@@ -50,12 +50,12 @@ jobs:
           git push -u origin "$BRANCH"
 
           LABELS="send-email"
-          BASE_BRANCH="save-file"
+          BASE_BRANCH="main"
           if [ "$FORCE_TRIGGER" = "true" ]; then
             LABELS="$LABELS,test"
-            # Create a new base branch off save-file for testing
+            # Create a new base branch off main for testing
             BASE_BRANCH="test-base-$(date +%Y%m%d-%H%M%S)"
-            git branch "$BASE_BRANCH" save-file
+            git branch "$BASE_BRANCH" main
             git push origin "$BASE_BRANCH"
           fi
 
