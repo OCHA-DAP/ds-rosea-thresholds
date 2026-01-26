@@ -6,6 +6,7 @@ on:
       - closed
     branches:
       - main
+      - 'test-base-*'
   workflow_dispatch:
     inputs:
       TEST_EMAIL:
@@ -29,4 +30,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - name: Send email
-        run: echo "Hello world!"
+        env:
+          LISTMONK_API_KEY: ${{ secrets.LISTMONK_API_KEY }}
+          LISTMONK_API_UID: ${{ secrets.LISTMONK_API_UID }}
+          LISTMONK_URL: ${{ secrets.LISTMONK_URL }}
+          TEST_EMAIL: ${{ github.event.inputs.TEST_EMAIL || (contains(github.event.pull_request.labels.*.name, 'test') && 'true' || 'false') }}
+        run: uv run send_email.py

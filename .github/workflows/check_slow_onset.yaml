@@ -5,18 +5,10 @@ on:
   #  - cron: '0 0 * * *'  # Runs daily at midnight UTC
   workflow_dispatch:
     inputs:
-      force:
-        description: 'Force update even if no changes'
+      FORCE_TRIGGER:
+        description: 'FORCE_TRIGGER'
         required: false
         default: 'false'
-        type: choice
-        options:
-          - 'true'
-          - 'false'
-      TEST_EMAIL:
-        description: 'Whether to send the email as a test'
-        required: false
-        default: 'true'
         type: choice
         options:
           - 'true'
@@ -25,17 +17,53 @@ on:
 jobs:
   check-monitoring:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - uses: astral-sh/setup-uv@v5
       - name: Run monitoring check
         env:
           HAPI_APP_IDENTIFIER: ${{ secrets.HAPI_APP_IDENTIFIER }}
-          DSCI_AZ_BLOB_DEV_SAS: ${{ secrets.DSCI_AZ_BLOB_DEV_SAS }}
-          DSCI_AZ_BLOB_DEV_SAS_WRITE: ${{ secrets.DSCI_AZ_BLOB_DEV_SAS_WRITE }}
-          LISTMONK_API_KEY: ${{ secrets.LISTMONK_API_KEY }}
-          LISTMONK_API_UID: ${{ secrets.LISTMONK_API_UID }}
-          LISTMONK_URL: ${{ secrets.LISTMONK_URL }}
-          TEST_EMAIL: ${{ github.event.inputs.TEST_EMAIL || vars.TEST_EMAIL || 'true' }}
-        run: uv run check_slow_onset.py ${{ github.event.inputs.force == 'true' && '--force' || '' }}
+          FORCE_TRIGGER: ${{ github.event.inputs.FORCE_TRIGGER || 'false' }}
+        run: uv run check_slow_onset.py
+      - name: Create PR if data changed
+        run: |
+          git add data/
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          # Create branch name based on mode
+          if [ "$FORCE_TRIGGER" = "true" ]; then
+            BRANCH="test-run-$(date +%Y%m%d-%H%M%S)"
+          else
+            BRANCH="data-update-$(date +%Y%m%d)"
+          fi
+          git checkout -b "$BRANCH"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "Update monitoring data"
+          git push -u origin "$BRANCH"
+
+          LABELS="send-email"
+          BASE_BRANCH="main"
+          if [ "$FORCE_TRIGGER" = "true" ]; then
+            LABELS="$LABELS,test"
+            # Create a new base branch off main for testing
+            BASE_BRANCH="test-base-$(date +%Y%m%d-%H%M%S)"
+            git branch "$BASE_BRANCH" main
+            git push origin "$BASE_BRANCH"
+          fi
+
+          PR_URL=$(gh pr create --title "Update monitoring data" --body "Automated data update from slow onset check." --label "$LABELS" --base "$BASE_BRANCH")
+          if [ -n "$PR_REVIEWER" ]; then
+            gh pr edit "$PR_URL" --add-reviewer "$PR_REVIEWER"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FORCE_TRIGGER: ${{ github.event.inputs.FORCE_TRIGGER || 'false' }}
+          PR_REVIEWER: ${{ vars.PR_REVIEWER }}
