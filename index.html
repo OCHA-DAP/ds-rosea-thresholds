@@ -147,7 +147,7 @@
             background: white;
             padding: 32px 40px;
             text-align: center;
-            max-width: 400px;
+            max-width: 800px;
             font-family: inherit;
         }
         .modal p {
@@ -156,31 +156,34 @@
             color: #333;
         }
         .modal button {
-            background: var(--blue);
-            color: white;
-            border: none;
-            padding: 12px 28px;
+            background: none;
+            border: 1px solid var(--gray);
+            color: var(--gray);
+            padding: 8px 16px;
             border-radius: 2px;
-            font-size: 16px;
+            font-size: 14px;
             font-family: inherit;
             cursor: pointer;
         }
-        .modal button:hover { background: #005bb5; }
+        .modal button:hover {
+            border-color: var(--blue);
+            color: var(--blue);
+        }
 
         /* Info tooltip styles */
         .info-icon {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 14px;
-            height: 14px;
+            width: 13px;
+            height: 13px;
             border-radius: 50%;
             background: var(--gray);
             color: white;
-            font-size: 10px;
+            font-size: 4px;
             font-weight: 600;
             cursor: pointer;
-            margin-left: 4px;
+            margin-left: 3px;
             vertical-align: middle;
         }
         .info-icon:hover { background: var(--blue); }
@@ -275,6 +278,7 @@
 <body>
     <div class="modal-overlay" id="modal">
         <div class="modal">
+            <p>This dashboard monitors slow-onset crises, primarily drought and food insecurity, across ROSEA countries without a permanent OCHA presence. It integrates IPC food security data and ASAP agricultural hotspot classifications to inform engagement thresholds and guide OCHA's support decisions.</p>
             <p>This application is an internal tool under development. For any enquiries please contact the OCHA Centre for Humanitarian Data at <a href="mailto:ocha-datascience@un.org">ocha-datascience@un.org</a>.</p>
             <button onclick="document.getElementById('modal').classList.add('hidden')">Continue</button>
         </div>
@@ -381,6 +385,7 @@
                             <span style="flex: 150;">500K+</span>
                         </div>
                     </div>
+                    <p style="font-size: 11px; color: #888; margin-top: 12px;">Thresholds were developed based on an analysis of historical data, and in consultation with OCHA ROSEA stakeholders.</p>
                     <button class="close-btn" onclick="document.getElementById('info-modal').classList.add('hidden')">Close</button>
                 `;
             } else if (type === 'hotspot') {
@@ -405,6 +410,7 @@
                             <span style="font-size: 12px;">No Hotspot</span>
                         </div>
                     </div>
+                    <p style="font-size: 11px; color: #888; margin-top: 12px;">Thresholds were developed based on an analysis of historical data, and in consultation with OCHA ROSEA stakeholders.</p>
                     <button class="close-btn" onclick="document.getElementById('info-modal').classList.add('hidden')">Close</button>
                 `;
             }
