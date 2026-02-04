@@ -166,6 +166,110 @@
             cursor: pointer;
         }
         .modal button:hover { background: #005bb5; }
+
+        /* Info tooltip styles */
+        .info-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--gray);
+            color: white;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
+        .info-icon:hover { background: var(--blue); }
+        .info-modal {
+            background: white;
+            padding: 24px;
+            width: 380px;
+            font-family: inherit;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            border-radius: 4px;
+        }
+        .info-modal h3 {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: #333;
+        }
+        .info-modal p {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 12px;
+            line-height: 1.4;
+        }
+        .threshold-diagram {
+            margin-bottom: 12px;
+        }
+        .threshold-scale {
+            display: flex;
+            height: 28px;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .threshold-segment {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 10px;
+            font-weight: 600;
+        }
+        .threshold-labels {
+            display: flex;
+            font-size: 10px;
+            color: #666;
+            margin-top: 2px;
+        }
+        .threshold-labels span {
+            text-align: left;
+        }
+        .condition-box {
+            background: #f5f5f5;
+            border-left: 3px solid var(--gray);
+            padding: 8px 10px;
+            margin: 8px 0;
+            font-size: 11px;
+        }
+        .condition-box strong {
+            color: #333;
+        }
+        .condition-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 4px;
+        }
+        .condition-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 2px;
+            color: white;
+            font-size: 10px;
+            font-weight: 600;
+        }
+        .info-modal .close-btn {
+            background: none;
+            border: 1px solid var(--gray);
+            color: var(--gray);
+            padding: 8px 16px;
+            border-radius: 2px;
+            font-size: 14px;
+            font-family: inherit;
+            cursor: pointer;
+            display: block;
+            margin: 0 auto;
+        }
+        .info-modal .close-btn:hover {
+            border-color: var(--blue);
+            color: var(--blue);
+        }
     </style>
 </head>
 <body>
@@ -175,6 +279,9 @@
             <button onclick="document.getElementById('modal').classList.add('hidden')">Continue</button>
         </div>
     </div>
+    <div class="modal-overlay hidden" id="info-modal" onclick="if(event.target === this) this.classList.add('hidden')">
+        <div class="info-modal" id="info-modal-content"></div>
+    </div>
     <div class="sidebar">
         <div class="header">
             <h1>ROSEA Slow Onset Monitoring</h1>
@@ -183,8 +290,8 @@
         <div id="details">
             <h2 id="detail-country"></h2>
             <div class="detail-grid">         
-                <div class="detail-item"><label>IPC Alert</label><span id="detail-ipc"></span></div>
-                <div class="detail-item"><label>Hotspot Alert</label><span id="detail-hs"></span></div>
+                <div class="detail-item"><label>IPC Alert <span class="info-icon" onclick="showInfoModal('ipc')">?</span></label><span id="detail-ipc"></span></div>
+                <div class="detail-item"><label>Hotspot Alert <span class="info-icon" onclick="showInfoModal('hotspot')">?</span></label><span id="detail-hs"></span></div>
                 <div class="detail-item"><label>IPC Period</label><span id="detail-ipc-period"></span></div>
                 <div class="detail-item"><label>Hotspot Date</label><span id="detail-hs-date"></span></div>
                 <div class="detail-item"><label>IPC Type</label><span id="detail-ipc-type"></span></div>
@@ -222,6 +329,88 @@
     <script>
         const COLORS = { low: '#2E8B57', medium: '#FF8C00', high: '#DC143C', 'very high': '#8B0000' };
         const LEVELS = ['low', 'medium', 'high', 'very high'];
+
+        function showInfoModal(type) {
+            const modal = document.getElementById('info-modal');
+            const content = document.getElementById('info-modal-content');
+
+            if (type === 'ipc') {
+                content.innerHTML = `
+                    <h3>IPC Alert Thresholds</h3>
+                    <p>Alert levels are determined by the higher of two scenarios:</p>
+
+                    <p style="font-weight: 600; margin-bottom: 6px;">Crisis Scenario</p>
+                    <p style="font-size: 11px; color: #666; margin-bottom: 6px;">Based on % of population in Phase 3+</p>
+                    <div class="threshold-diagram">
+                        <div class="threshold-scale">
+                            <div class="threshold-segment" style="background: var(--low); flex: 18;">Low</div>
+                            <div class="threshold-segment" style="background: var(--medium); flex: 7;">Medium</div>
+                            <div class="threshold-segment" style="background: #aaa; flex: 25;">see below</div>
+                        </div>
+                        <div class="threshold-labels">
+                            <span style="flex: 18;">0%</span>
+                            <span style="flex: 7;">18%</span>
+                            <span style="flex: 25;">25%</span>
+                        </div>
+                    </div>
+                    <div class="condition-box">
+                        <strong>When Phase 3+ is above 25%, alert depends on deterioration:</strong>
+                        <div class="condition-row">
+                            <span class="condition-badge" style="background: var(--high);">High</span>
+                            <span>+5 percentage point increase in Phase 3+</span>
+                        </div>
+                        <div class="condition-row">
+                            <span class="condition-badge" style="background: var(--very-high);">Very High</span>
+                            <span>+3 percentage point increase in Phase 4+</span>
+                        </div>
+                    </div>
+
+                    <p style="font-weight: 600; margin-bottom: 6px; margin-top: 16px;">Emergency Scenario</p>
+                    <p style="font-size: 11px; color: #666; margin-bottom: 6px;">Based on population in Phase 4+</p>
+                    <div class="threshold-diagram">
+                        <div class="threshold-scale">
+                            <div class="threshold-segment" style="background: var(--low); flex: 50;">Low</div>
+                            <div class="threshold-segment" style="background: var(--medium); flex: 150;">Medium</div>
+                            <div class="threshold-segment" style="background: var(--high); flex: 300;">High</div>
+                            <div class="threshold-segment" style="background: var(--very-high); flex: 150;">V. High</div>
+                        </div>
+                        <div class="threshold-labels">
+                            <span style="flex: 50;">0</span>
+                            <span style="flex: 150;">50K</span>
+                            <span style="flex: 300;">200K</span>
+                            <span style="flex: 150;">500K+</span>
+                        </div>
+                    </div>
+                    <button class="close-btn" onclick="document.getElementById('info-modal').classList.add('hidden')">Close</button>
+                `;
+            } else if (type === 'hotspot') {
+                content.innerHTML = `
+                    <h3>Hotspot Alert Thresholds</h3>
+                    <p>Alert levels are based on <strong>ASAP</strong> classifications indicating risk of below-normal agricultural production.</p>
+                    <div class="threshold-diagram" style="display: flex; flex-direction: column; gap: 6px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="condition-badge" style="background: var(--very-high); min-width: 70px; text-align: center;">Very High</span>
+                            <span style="font-size: 12px;">Major Hotspot</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="condition-badge" style="background: var(--high); min-width: 70px; text-align: center;">High</span>
+                            <span style="font-size: 12px;">4+ consecutive months of Hotspot</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="condition-badge" style="background: var(--medium); min-width: 70px; text-align: center;">Medium</span>
+                            <span style="font-size: 12px;">Hotspot</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="condition-badge" style="background: var(--low); min-width: 70px; text-align: center;">Low</span>
+                            <span style="font-size: 12px;">No Hotspot</span>
+                        </div>
+                    </div>
+                    <button class="close-btn" onclick="document.getElementById('info-modal').classList.add('hidden')">Close</button>
+                `;
+            }
+
+            modal.classList.remove('hidden');
+        }
         let currentData = [], geojsonLayer = null, selectedLayer = null;
 
         async function loadCSV(file) {
