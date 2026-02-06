@@ -467,7 +467,11 @@
 
         function formatDate(dateStr) {
             if (!dateStr) return '-';
-            const d = new Date(dateStr);
+            // Parse date components to avoid timezone shifts
+            const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (!match) return '-';
+            const [, year, month, day] = match;
+            const d = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
             if (isNaN(d)) return '-';
             return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
         }
