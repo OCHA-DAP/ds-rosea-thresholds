@@ -525,7 +525,7 @@
             }
 
             let summary = data.hotspot_comment || 'No summary available.';
-            summary = summary.replace(/\[([^\]]+)\]\s*([^[\s]+)/g, '<a href="$2" target="_blank">$1</a>');
+            summary = summary.replace(/\[(https?:\/\/[^\s\]]+)\]/g, '<a href="$1" target="_blank">$1</a>');
             document.getElementById('detail-summary').innerHTML = summary;
 
             document.getElementById('placeholder').classList.add('hidden');
