@@ -190,7 +190,7 @@
         .info-modal {
             background: white;
             padding: 24px;
-            width: 380px;
+            width: 500px;
             font-family: inherit;
             box-shadow: 0 4px 20px rgba(0,0,0,0.15);
             border-radius: 4px;
@@ -234,8 +234,6 @@
             text-align: left;
         }
         .condition-box {
-            background: #f5f5f5;
-            border-left: 3px solid var(--gray);
             padding: 8px 10px;
             margin: 8px 0;
             font-size: 11px;
@@ -278,8 +276,17 @@
 <body>
     <div class="modal-overlay" id="modal">
         <div class="modal">
-            <p>This dashboard monitors slow-onset crises, primarily drought and food insecurity, across ROSEA countries without a permanent OCHA presence. It integrates IPC food security data and ASAP agricultural hotspot classifications to inform engagement thresholds and guide OCHA's support decisions.</p>
-            <p>This application is an internal tool under development. For any enquiries please contact the OCHA Centre for Humanitarian Data at <a href="mailto:ocha-datascience@un.org">ocha-datascience@un.org</a>.</p>
+            <p>
+                This dashboard monitors for slow-onset crises across ROSEA countries without a permanent OCHA presence. 
+                Each country is assigned an alert level indicating the possible severity of a crisis, ranging from 
+                low to very high. Alert levels are assigned based on thresholds applied to the latest available 
+                IPC food security data and JRC Anomaly Hotspots of Agricultural Production (ASAP). 
+            </p>
+            <p>
+                This application is an internal tool under development. For any enquiries please contact 
+                the OCHA Centre for Humanitarian Data at <a href="mailto:ocha-datascience@un.org">ocha-datascience@un.org</a>.
+                Sign up for  <a href="https://data.humdata.org/signals">HDX Signals</a> for additional email alerts on IPC and ASAP data. 
+            </p>
             <button onclick="document.getElementById('modal').classList.add('hidden')">Continue</button>
         </div>
     </div>
@@ -341,10 +348,17 @@
             if (type === 'ipc') {
                 content.innerHTML = `
                     <h3>IPC Alert Thresholds</h3>
-                    <p>Alert levels are determined by the higher of two scenarios:</p>
+                    <p>
+                        We process the latest available IPC projections that overlap with 
+                        the current date. An alert level is assigned based on the maximum 
+                        of the following two scenarios. 
+                    </p>
 
                     <p style="font-weight: 600; margin-bottom: 6px;">Crisis Scenario</p>
-                    <p style="font-size: 11px; color: #666; margin-bottom: 6px;">Based on % of population in Phase 3+</p>
+                    <p style="font-size: 11px; color: #666; margin-bottom: 6px;">
+                        This scenario focuses on relative figures (i.e., proportion of population in Phase 3+) 
+                        to capture the overall food security situation and key trends.
+                    </p>
                     <div class="threshold-diagram">
                         <div class="threshold-scale">
                             <div class="threshold-segment" style="background: var(--low); flex: 18;">Low</div>
@@ -370,7 +384,11 @@
                     </div>
 
                     <p style="font-weight: 600; margin-bottom: 6px; margin-top: 16px;">Emergency Scenario</p>
-                    <p style="font-size: 11px; color: #666; margin-bottom: 6px;">Based on population in Phase 4+</p>
+                    <p style="font-size: 11px; color: #666; margin-bottom: 6px;">
+                        This scenario is based on absolute IPC4+ caseloads, aiming to identify significant 
+                        populations in the Emergency phase or above that require 
+                        immediate attention and support.
+                    </p>
                     <div class="threshold-diagram">
                         <div class="threshold-scale">
                             <div class="threshold-segment" style="background: var(--low); flex: 50;">Low</div>
@@ -385,13 +403,17 @@
                             <span style="flex: 150;">500K+</span>
                         </div>
                     </div>
-                    <p style="font-size: 11px; color: #888; margin-top: 12px;">Thresholds were developed based on an analysis of historical data, and in consultation with OCHA ROSEA stakeholders.</p>
+                    <p style="font-size: 11px; color: #888; margin-top: 12px;">
+                        Validation of the proposed thresholds was conducted through historical analysis, 
+                        comparing past crisis data (e.g., flash appeals, CERF allocations, and surge deployments) 
+                        with classified risk levels to ensure alignment between analytical signals and operational decisions.
+                    </p>
                     <button class="close-btn" onclick="document.getElementById('info-modal').classList.add('hidden')">Close</button>
                 `;
             } else if (type === 'hotspot') {
                 content.innerHTML = `
                     <h3>Hotspot Alert Thresholds</h3>
-                    <p>Alert levels are based on <strong>ASAP</strong> classifications indicating risk of below-normal agricultural production.</p>
+                    <p>These alert levels are based on the latest JRC ASAP classifications indicating risk of below-normal agricultural production.</p>
                     <div class="threshold-diagram" style="display: flex; flex-direction: column; gap: 6px;">
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <span class="condition-badge" style="background: var(--very-high); min-width: 70px; text-align: center;">Very High</span>
@@ -410,7 +432,12 @@
                             <span style="font-size: 12px;">No Hotspot</span>
                         </div>
                     </div>
-                    <p style="font-size: 11px; color: #888; margin-top: 12px;">Thresholds were developed based on an analysis of historical data, and in consultation with OCHA ROSEA stakeholders.</p>
+                    <p style="font-size: 11px; color: #888; margin-top: 12px;">
+                        Validation of the proposed thresholds was conducted through 
+                        historical analysis, comparing past crisis data (e.g., flash appeals, 
+                        CERF allocations, and surge deployments) with classified risk levels 
+                        to ensure alignment between analytical signals and operational decisions.
+                    </p>
                     <button class="close-btn" onclick="document.getElementById('info-modal').classList.add('hidden')">Close</button>
                 `;
             }
