@@ -146,14 +146,20 @@
         .modal {
             background: white;
             padding: 32px 40px;
-            text-align: center;
             max-width: 800px;
             font-family: inherit;
+        }
+        .modal h2 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            text-align: center;
         }
         .modal p {
             font-size: 18px;
             margin-bottom: 24px;
             color: #333;
+            text-align: left;
         }
         .modal button {
             background: none;
@@ -164,6 +170,8 @@
             font-size: 14px;
             font-family: inherit;
             cursor: pointer;
+            display: block;
+            margin: 0 auto;
         }
         .modal button:hover {
             border-color: var(--blue);
@@ -276,16 +284,17 @@
 <body>
     <div class="modal-overlay" id="modal">
         <div class="modal">
+            <h2>Overview</h2>
             <p>
-                This dashboard monitors for slow-onset crises across ROSEA countries without a permanent OCHA presence. 
-                Each country is assigned an alert level indicating the possible severity of a crisis, ranging from 
-                low to very high. Alert levels are assigned based on thresholds applied to the latest available 
-                IPC food security data and JRC Anomaly Hotspots of Agricultural Production (ASAP). 
+                This dashboard monitors for slow-onset crises across ROSEA countries without a permanent OCHA presence.
+                Each country is assigned an alert level indicating the possible severity of a crisis, ranging from
+                low to very high. Alert levels are assigned based on thresholds applied to the latest available
+                IPC food security data and JRC Anomaly Hotspots of Agricultural Production (ASAP).
             </p>
             <p>
-                This application is an internal tool under development. For any enquiries please contact 
+                This application is an internal tool under development. For any enquiries please contact
                 the OCHA Centre for Humanitarian Data at <a href="mailto:ocha-datascience@un.org">ocha-datascience@un.org</a>.
-                Sign up for  <a href="https://data.humdata.org/signals">HDX Signals</a> for additional email alerts on IPC and ASAP data. 
+                Sign up for  <a href="https://data.humdata.org/signals">HDX Signals</a> for additional email alerts on IPC and ASAP data.
             </p>
             <button onclick="document.getElementById('modal').classList.add('hidden')">Continue</button>
         </div>
