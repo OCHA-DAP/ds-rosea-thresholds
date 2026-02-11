@@ -129,6 +129,33 @@
         .legend-title { font-weight: 600; margin-bottom: 4px; }
         .legend-item { display: flex; align-items: center; gap: 8px; }
         .legend-color { width: 14px; height: 14px; border-radius: 2px; }
+        .legend-toggle {
+            display: flex;
+            gap: 4px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #ddd;
+        }
+        .legend-toggle button {
+            flex: 1;
+            background: white;
+            border: 1px solid #ccc;
+            padding: 4px 8px;
+            font-size: 12px;
+            font-family: inherit;
+            cursor: pointer;
+            border-radius: 2px;
+            transition: all 0.2s;
+        }
+        .legend-toggle button:hover {
+            border-color: var(--blue);
+            color: var(--blue);
+        }
+        .legend-toggle button.active {
+            background: var(--blue);
+            color: white;
+            border-color: var(--blue);
+        }
         .loading { text-align: center; padding: 40px; color: var(--gray); }
         .modal-overlay {
             position: fixed;
@@ -350,6 +377,9 @@
         const COLORS = { low: '#2E8B57', medium: '#FF8C00', high: '#DC143C', 'very high': '#8B0000' };
         const LEVELS = ['low', 'medium', 'high', 'very high'];
 
+        let currentAlertType = 'max'; // 'max', 'ipc', or 'hotspot'
+        let map, geojsonLayer, currentData = [], selectedLayer = null;
+
         function showInfoModal(type) {
             const modal = document.getElementById('info-modal');
             const content = document.getElementById('info-modal-content');
@@ -453,7 +483,58 @@
 
             modal.classList.remove('hidden');
         }
-        let currentData = [], geojsonLayer = null, selectedLayer = null;
+
+        function getAlertField(type) {
+            if (type === 'ipc') return 'alert_level_ipc';
+            if (type === 'hotspot') return 'alert_level_hs';
+            return 'max_alert_level';
+        }
+
+        function updateMapColors() {
+            if (geojsonLayer) {
+                geojsonLayer.eachLayer(layer => {
+                    const iso3 = layer.feature.properties.iso_3;
+                    const data = currentData.find(d => d.iso3 === iso3);
+                    const field = getAlertField(currentAlertType);
+                    const level = data?.[field] || 'none';
+                    layer.setStyle({
+                        fillColor: COLORS[level] || '#e0e0e0',
+                        fillOpacity: 0.7
+                    });
+                });
+            }
+            updateLegend();
+        }
+
+        function updateLegend() {
+            const field = getAlertField(currentAlertType);
+            const counts = Object.fromEntries(LEVELS.map(l => [l, currentData.filter(r => r[field] === l).length]));
+
+            const titles = {
+                max: 'Maximum alert level',
+                ipc: 'IPC alert level',
+                hotspot: 'Hotspot alert level'
+            };
+
+            document.getElementById('legend').innerHTML = `
+                <div class="legend-title">${titles[currentAlertType]}</div>
+                ${LEVELS.map(l => {
+                    const label = l.split(' ').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+                    const countText = counts[l] === 1 ? '1 country' : `${counts[l]} countries`;
+                    return `<div class="legend-item"><div class="legend-color" style="background: var(--${l.replace(' ', '-')})"></div> ${label} <span class="legend-count">(${countText})</span></div>`;
+                }).join('')}
+                <div class="legend-toggle">
+                    <button class="${currentAlertType === 'max' ? 'active' : ''}" onclick="setAlertType('max')">Max</button>
+                    <button class="${currentAlertType === 'ipc' ? 'active' : ''}" onclick="setAlertType('ipc')">IPC</button>
+                    <button class="${currentAlertType === 'hotspot' ? 'active' : ''}" onclick="setAlertType('hotspot')">Hotspot</button>
+                </div>
+            `;
+        }
+
+        function setAlertType(type) {
+            currentAlertType = type;
+            updateMapColors();
+        }
 
         async function loadCSV(file) {
             const res = await fetch('data/' + file);
@@ -578,17 +659,11 @@
                 const dataMap = {};
                 currentData.forEach(d => dataMap[d.iso3] = d);
 
-                // Legend with counts
-                const counts = Object.fromEntries(LEVELS.map(l => [l, currentData.filter(r => r.max_alert_level === l).length]));
-                document.getElementById('legend').innerHTML = '<div class="legend-title">Maximum alert level</div>' +
-                    LEVELS.map(l => {
-                        const label = l.split(' ').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
-                        const countText = counts[l] === 1 ? '1 country' : `${counts[l]} countries`;
-                        return `<div class="legend-item"><div class="legend-color" style="background: var(--${l.replace(' ', '-')})"></div> ${label} <span class="legend-count">(${countText})</span></div>`;
-                    }).join('');
+                // Initialize legend
+                updateLegend();
 
                 // Initialize Leaflet map
-                const map = L.map('map', { zoomControl: false }).setView([-5, 30], 4);
+                map = L.map('map', { zoomControl: false }).setView([-5, 30], 4);
                 L.control.zoom({ position: 'topright' }).addTo(map);
 
                 // Add basemap
@@ -604,7 +679,8 @@
                 // Style function
                 function style(feature) {
                     const data = dataMap[feature.properties.iso_3];
-                    const level = data?.max_alert_level || 'none';
+                    const field = getAlertField(currentAlertType);
+                    const level = data?.[field] || 'none';
                     return {
                         fillColor: COLORS[level] || '#e0e0e0',
                         weight: 1,
