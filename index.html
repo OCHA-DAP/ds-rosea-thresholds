@@ -7,173 +7,29 @@
     <link rel="icon" type="image/png" href="assets/favicon.png">
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="assets/styles.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <style>
-        :root {
-            --low: #2E8B57;
-            --medium: #FF8C00;
-            --high: #DC143C;
-            --very-high: #8B0000;
-            --blue: #007CE0;
-            --gray: #888888;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body {
-            height: 100%;
-            overflow: hidden;
-        }
-        body {
-            font-family: 'Source Sans Pro', sans-serif;
-            font-size: 16px;
-            background: #fff;
-            display: flex;
-        }
-        .sidebar {
-            width: 30%;
-            height: 100%;
-            padding: 24px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-        .header {
-            flex-shrink: 0;
-            margin-bottom: 20px;
-        }
-        .logos {
-            display: flex;
-            gap: 16px;
-        }
-        .logos img { height: 40px; }
-        h1 { font-size: 30px; font-weight: 700; margin-bottom: 12px; }
-        .legend-count { color: var(--gray); }
-        #ipc-stats-container { margin-bottom: 14px; }
-        #detail-ipc-stats { font-size: 14px; margin-top: 4px; }
-        #details { display: none; flex: 1; overflow-y: auto; min-height: 0; }
-        #details.visible { display: block; }
-        #details h2 { font-size: 20px; font-weight: 700; margin-bottom: 16px; }
-        .detail-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 14px;
-        }
-        .detail-item label {
-            display: block;
-            font-size: 12px;
-            color: var(--gray);
-            margin-bottom: 2px;
-            text-transform: uppercase;
-        }
-        .detail-item span { font-size: 14px; font-weight: 600; }
-        .alert-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 3px;
-            color: white;
-            font-weight: 600;
-            font-size: 12px;
-            text-transform: capitalize;
-        }
-        .alert-low { background: var(--low); }
-        .alert-medium { background: var(--medium); }
-        .alert-high { background: var(--high); }
-        .alert-very-high { background: var(--very-high); }
-        .summary-text {
-            font-size: 14px;
-            line-height: 1.5;
-            color: #444;
-        }
-        .summary-text a { color: var(--blue); }
-        .placeholder {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--gray);
-            font-size: 16px;
-            min-height: 0;
-        }
-        .placeholder.hidden { display: none; }
-        .footer-links {
-            flex-shrink: 0;
-            display: flex;
-            justify-content: space-between;
-            padding-top: 10px;
-        }
-        .source {
-            font-size: 12px;
-            color: var(--gray);
-        }
-        .source a { color: var(--blue); text-decoration: none; }
-        .source a:hover { text-decoration: underline; }
-        .map-container {
-            width: 70%;
-            height: 100%;
-            position: relative;
-        }
-        #map { width: 100%; height: 100%; }
-        .legend {
-            position: absolute;
-            bottom: 16px;
-            left: 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            background: rgba(255,255,255,0.9);
-            padding: 12px 14px;
-            font-size: 14px;
-            z-index: 1000;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-        }
-        .legend-title { font-weight: 600; margin-bottom: 4px; }
-        .legend-item { display: flex; align-items: center; gap: 8px; }
-        .legend-color { width: 14px; height: 14px; border-radius: 2px; }
-        .loading { text-align: center; padding: 40px; color: var(--gray); }
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-        }
-        .modal-overlay.hidden { display: none; }
-        .modal {
-            background: white;
-            padding: 32px 40px;
-            text-align: center;
-            max-width: 400px;
-            font-family: inherit;
-        }
-        .modal p {
-            font-size: 18px;
-            margin-bottom: 24px;
-            color: #333;
-        }
-        .modal button {
-            background: var(--blue);
-            color: white;
-            border: none;
-            padding: 12px 28px;
-            border-radius: 2px;
-            font-size: 16px;
-            font-family: inherit;
-            cursor: pointer;
-        }
-        .modal button:hover { background: #005bb5; }
-    </style>
 </head>
 <body>
     <div class="modal-overlay" id="modal">
         <div class="modal">
-            <p>This application is an internal tool under development. For any enquiries please contact the OCHA Centre for Humanitarian Data at <a href="mailto:ocha-datascience@un.org">ocha-datascience@un.org</a>.</p>
+            <h2>Overview</h2>
+            <p>
+                This dashboard monitors for slow-onset crises across ROSEA countries without a permanent OCHA presence.
+                Each country is assigned an alert level indicating the possible severity of a crisis, ranging from
+                low to very high. Alert levels are assigned based on thresholds applied to the latest available
+                IPC food security data and JRC Anomaly Hotspots of Agricultural Production (ASAP).
+            </p>
+            <p>
+                This application is an internal tool under development. For any enquiries please contact
+                the OCHA Centre for Humanitarian Data at <a href="mailto:ocha-datascience@un.org">ocha-datascience@un.org</a>.
+                Sign up for  <a href="https://data.humdata.org/signals">HDX Signals</a> for additional email alerts on IPC and ASAP data.
+            </p>
             <button onclick="document.getElementById('modal').classList.add('hidden')">Continue</button>
         </div>
+    </div>
+    <div class="modal-overlay hidden" id="info-modal" onclick="if(event.target === this) this.classList.add('hidden')">
+        <div class="info-modal" id="info-modal-content"></div>
     </div>
     <div class="sidebar">
         <div class="header">
@@ -183,8 +39,8 @@
         <div id="details">
             <h2 id="detail-country"></h2>
             <div class="detail-grid">         
-                <div class="detail-item"><label>IPC Alert</label><span id="detail-ipc"></span></div>
-                <div class="detail-item"><label>Hotspot Alert</label><span id="detail-hs"></span></div>
+                <div class="detail-item"><label>IPC Alert (Crisis or Emerg.) <span class="info-icon" onclick="showInfoModal('ipc')">?</span></label><span id="detail-ipc"></span></div>
+                <div class="detail-item"><label>Hotspot Alert <span class="info-icon" onclick="showInfoModal('hotspot')">?</span></label><span id="detail-hs"></span></div>
                 <div class="detail-item"><label>IPC Period</label><span id="detail-ipc-period"></span></div>
                 <div class="detail-item"><label>Hotspot Date</label><span id="detail-hs-date"></span></div>
                 <div class="detail-item"><label>IPC Type</label><span id="detail-ipc-type"></span></div>
@@ -222,7 +78,165 @@
     <script>
         const COLORS = { low: '#2E8B57', medium: '#FF8C00', high: '#DC143C', 'very high': '#8B0000' };
         const LEVELS = ['low', 'medium', 'high', 'very high'];
-        let currentData = [], geojsonLayer = null, selectedLayer = null;
+
+        let currentAlertType = 'max'; // 'max', 'ipc', or 'hotspot'
+        let map, geojsonLayer, currentData = [], selectedLayer = null;
+
+        function showInfoModal(type) {
+            const modal = document.getElementById('info-modal');
+            const content = document.getElementById('info-modal-content');
+
+            if (type === 'ipc') {
+                content.innerHTML = `
+                    <h3>IPC Alert Thresholds</h3>
+                    <p>
+                        We process the latest available IPC projections that overlap with 
+                        the current date. An alert level is assigned based on the maximum 
+                        of the following two scenarios. 
+                    </p>
+
+                    <p style="font-weight: 600; margin-bottom: 6px;">Crisis Scenario</p>
+                    <p style="font-size: 11px; color: #666; margin-bottom: 6px;">
+                        This scenario focuses on relative figures (i.e., proportion of population in Phase 3+) 
+                        to capture the overall food security situation and key trends.
+                    </p>
+                    <div class="threshold-diagram">
+                        <div class="threshold-scale">
+                            <div class="threshold-segment" style="background: var(--low); flex: 18;">Low</div>
+                            <div class="threshold-segment" style="background: var(--medium); flex: 7;">Medium</div>
+                            <div class="threshold-segment" style="background: #aaa; flex: 25;">see below</div>
+                        </div>
+                        <div class="threshold-labels">
+                            <span style="flex: 18;">0%</span>
+                            <span style="flex: 7;">18%</span>
+                            <span style="flex: 25;">25%</span>
+                        </div>
+                    </div>
+                    <div class="condition-box">
+                        <strong>When Phase 3+ is above 25%, alert depends on deterioration:</strong>
+                        <div class="condition-row">
+                            <span class="condition-badge" style="background: var(--high);">High</span>
+                            <span>+5 percentage point increase in Phase 3+</span>
+                        </div>
+                        <div class="condition-row">
+                            <span class="condition-badge" style="background: var(--very-high);">Very High</span>
+                            <span>+3 percentage point increase in Phase 4+</span>
+                        </div>
+                    </div>
+
+                    <p style="font-weight: 600; margin-bottom: 6px; margin-top: 16px;">Emergency Scenario</p>
+                    <p style="font-size: 11px; color: #666; margin-bottom: 6px;">
+                        This scenario is based on absolute IPC4+ caseloads, aiming to identify significant 
+                        populations in the Emergency phase or above that require 
+                        immediate attention and support.
+                    </p>
+                    <div class="threshold-diagram">
+                        <div class="threshold-scale">
+                            <div class="threshold-segment" style="background: var(--low); flex: 50;">Low</div>
+                            <div class="threshold-segment" style="background: var(--medium); flex: 150;">Medium</div>
+                            <div class="threshold-segment" style="background: var(--high); flex: 300;">High</div>
+                            <div class="threshold-segment" style="background: var(--very-high); flex: 150;">V. High</div>
+                        </div>
+                        <div class="threshold-labels">
+                            <span style="flex: 50;">0</span>
+                            <span style="flex: 150;">50K</span>
+                            <span style="flex: 300;">200K</span>
+                            <span style="flex: 150;">500K+</span>
+                        </div>
+                    </div>
+                    <p style="font-size: 11px; color: #888; margin-top: 12px;">
+                        Validation of the proposed thresholds was conducted through historical analysis, 
+                        comparing past crisis data (e.g., flash appeals, CERF allocations, and surge deployments) 
+                        with classified risk levels to ensure alignment between analytical signals and operational decisions.
+                    </p>
+                    <button class="close-btn" onclick="document.getElementById('info-modal').classList.add('hidden')">Close</button>
+                `;
+            } else if (type === 'hotspot') {
+                content.innerHTML = `
+                    <h3>Hotspot Alert Thresholds</h3>
+                    <p>These alert levels are based on the latest JRC ASAP classifications indicating risk of below-normal agricultural production.</p>
+                    <div class="threshold-diagram" style="display: flex; flex-direction: column; gap: 6px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="condition-badge" style="background: var(--very-high); min-width: 70px; text-align: center;">Very High</span>
+                            <span style="font-size: 12px;">Major Hotspot</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="condition-badge" style="background: var(--high); min-width: 70px; text-align: center;">High</span>
+                            <span style="font-size: 12px;">4+ consecutive months of Hotspot</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="condition-badge" style="background: var(--medium); min-width: 70px; text-align: center;">Medium</span>
+                            <span style="font-size: 12px;">Hotspot</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="condition-badge" style="background: var(--low); min-width: 70px; text-align: center;">Low</span>
+                            <span style="font-size: 12px;">No Hotspot</span>
+                        </div>
+                    </div>
+                    <p style="font-size: 11px; color: #888; margin-top: 12px;">
+                        Validation of the proposed thresholds was conducted through 
+                        historical analysis, comparing past crisis data (e.g., flash appeals, 
+                        CERF allocations, and surge deployments) with classified risk levels 
+                        to ensure alignment between analytical signals and operational decisions.
+                    </p>
+                    <button class="close-btn" onclick="document.getElementById('info-modal').classList.add('hidden')">Close</button>
+                `;
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function getAlertField(type) {
+            if (type === 'ipc') return 'alert_level_ipc';
+            if (type === 'hotspot') return 'alert_level_hs';
+            return 'max_alert_level';
+        }
+
+        function updateMapColors() {
+            if (geojsonLayer) {
+                geojsonLayer.eachLayer(layer => {
+                    const iso3 = layer.feature.properties.iso_3;
+                    const data = currentData.find(d => d.iso3 === iso3);
+                    const field = getAlertField(currentAlertType);
+                    const level = data?.[field] || 'none';
+                    layer.setStyle({
+                        fillColor: COLORS[level] || '#e0e0e0',
+                        fillOpacity: 0.7
+                    });
+                });
+            }
+            updateLegend();
+        }
+
+        function updateLegend() {
+            const field = getAlertField(currentAlertType);
+            const counts = Object.fromEntries(LEVELS.map(l => [l, currentData.filter(r => r[field] === l).length]));
+
+            const titles = {
+                max: 'Maximum alert level',
+                ipc: 'IPC Alert (Crisis or Emerg.)',
+                hotspot: 'Hotspot alert level'
+            };
+
+            document.getElementById('legend').innerHTML = `
+                <div class="legend-title">${titles[currentAlertType]}</div>
+                ${LEVELS.map(l => {
+                    const label = l.split(' ').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+                    const countText = counts[l] === 1 ? '1 country' : `${counts[l]} countries`;
+                    return `<div class="legend-item"><div class="legend-color" style="background: var(--${l.replace(' ', '-')})"></div> ${label} <span class="legend-count">(${countText})</span></div>`;
+                }).join('')}
+                <div class="legend-toggle">
+                    <button class="${currentAlertType === 'max' ? 'active' : ''}" onclick="setAlertType('max')">Max</button>
+                    <button class="${currentAlertType === 'ipc' ? 'active' : ''}" onclick="setAlertType('ipc')">IPC</button>
+                    <button class="${currentAlertType === 'hotspot' ? 'active' : ''}" onclick="setAlertType('hotspot')">Hotspot</button>
+                </div>
+            `;
+        }
+
+        function setAlertType(type) {
+            currentAlertType = type;
+            updateMapColors();
+        }
 
         async function loadCSV(file) {
             const res = await fetch('data/' + file);
@@ -272,7 +286,11 @@
 
         function formatDate(dateStr) {
             if (!dateStr) return '-';
-            const d = new Date(dateStr);
+            // Parse date components to avoid timezone shifts
+            const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (!match) return '-';
+            const [, year, month, day] = match;
+            const d = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
             if (isNaN(d)) return '-';
             return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
         }
@@ -290,8 +308,19 @@
             if (!num && num !== 0) return '';
             const val = parseFloat(num);
             if (isNaN(val)) return '';
-            const [color, arrow, sign] = val > 0 ? ['high', '▲', '+'] : val < 0 ? ['low', '▼', ''] : ['gray', '→', ''];
-            return `<span style="color: var(--${color});">${arrow} ${sign}${val.toFixed(0)}pp</span>`;
+            if (val === 0) return '-- 0 pct. points';
+            const [color, arrow, sign] = val > 0 ? ['high', '▲', '+'] : ['low', '▼', ''];
+            return `<span style="color: var(--${color});">${arrow} ${sign}${val.toFixed(0)} pct. points</span>`;
+        }
+
+        function formatIpcCriteria(detail) {
+            if (!detail) return '';
+            const criteriaMap = {
+                'emergency': 'Emergency',
+                'crisis': 'Crisis',
+                'both': 'Both'
+            };
+            return criteriaMap[detail] || detail;
         }
 
         function showDetails(iso3, layer) {
@@ -307,7 +336,19 @@
 
             document.getElementById('detail-country').textContent = data.country;
             document.getElementById('detail-hs').innerHTML = alertBadge(data.alert_level_hs);
-            document.getElementById('detail-ipc').innerHTML = alertBadge(data.alert_level_ipc);
+
+            // Display IPC alert with scenario detail in parentheses
+            const ipcLevel = data.alert_level_ipc;
+            const scenarioDetail = formatIpcCriteria(data.alert_level_detail);
+            const ipcDisplayText = scenarioDetail ? `${ipcLevel} (${scenarioDetail})` : ipcLevel;
+
+            if (ipcLevel) {
+                const cls = 'alert-' + ipcLevel.replace(' ', '-');
+                document.getElementById('detail-ipc').innerHTML = `<span class="alert-badge ${cls}">${ipcDisplayText}</span>`;
+            } else {
+                document.getElementById('detail-ipc').innerHTML = '-';
+            }
+
             document.getElementById('detail-hs-date').textContent = formatDate(data.hotspot_date);
             document.getElementById('detail-ipc-type').textContent = data.ipc_type || '-';
 
@@ -330,7 +371,7 @@
             }
 
             let summary = data.hotspot_comment || 'No summary available.';
-            summary = summary.replace(/\[([^\]]+)\]\s*([^[\s]+)/g, '<a href="$2" target="_blank">$1</a>');
+            summary = summary.replace(/\[(https?:\/\/[^\s\]]+)\]/g, '<a href="$1" target="_blank">$1</a>');
             document.getElementById('detail-summary').innerHTML = summary;
 
             document.getElementById('placeholder').classList.add('hidden');
@@ -343,17 +384,11 @@
                 const dataMap = {};
                 currentData.forEach(d => dataMap[d.iso3] = d);
 
-                // Legend with counts
-                const counts = Object.fromEntries(LEVELS.map(l => [l, currentData.filter(r => r.max_alert_level === l).length]));
-                document.getElementById('legend').innerHTML = '<div class="legend-title">Maximum alert level</div>' +
-                    LEVELS.map(l => {
-                        const label = l.split(' ').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
-                        const countText = counts[l] === 1 ? '1 country' : `${counts[l]} countries`;
-                        return `<div class="legend-item"><div class="legend-color" style="background: var(--${l.replace(' ', '-')})"></div> ${label} <span class="legend-count">(${countText})</span></div>`;
-                    }).join('');
+                // Initialize legend
+                updateLegend();
 
                 // Initialize Leaflet map
-                const map = L.map('map', { zoomControl: false }).setView([-5, 30], 4);
+                map = L.map('map', { zoomControl: false }).setView([-5, 30], 4);
                 L.control.zoom({ position: 'topright' }).addTo(map);
 
                 // Add basemap
@@ -369,7 +404,8 @@
                 // Style function
                 function style(feature) {
                     const data = dataMap[feature.properties.iso_3];
-                    const level = data?.max_alert_level || 'none';
+                    const field = getAlertField(currentAlertType);
+                    const level = data?.[field] || 'none';
                     return {
                         fillColor: COLORS[level] || '#e0e0e0',
                         weight: 1,

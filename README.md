@@ -88,3 +88,13 @@ uv run ruff format .       # Format code
 uv add package-name        # Runtime
 uv add --dev package-name  # Development
 ```
+
+### View the dashboard
+
+Serve the files locally:
+
+```bash
+python -m http.server 8000
+```
+
+Then open http://localhost:8000 in your browser.
