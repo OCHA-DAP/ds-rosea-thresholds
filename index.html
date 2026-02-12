@@ -312,6 +312,16 @@
             return `<span style="color: var(--${color});">${arrow} ${sign}${val.toFixed(0)}pp</span>`;
         }
 
+        function formatIpcCriteria(detail) {
+            if (!detail) return '';
+            const criteriaMap = {
+                'emergency': 'Emergency',
+                'crisis': 'Crisis',
+                'both': 'Both'
+            };
+            return criteriaMap[detail] || detail;
+        }
+
         function showDetails(iso3, layer) {
             const data = currentData.find(d => d.iso3 === iso3);
             if (!data) return;
@@ -325,7 +335,19 @@
 
             document.getElementById('detail-country').textContent = data.country;
             document.getElementById('detail-hs').innerHTML = alertBadge(data.alert_level_hs);
-            document.getElementById('detail-ipc').innerHTML = alertBadge(data.alert_level_ipc);
+
+            // Display IPC alert with scenario detail in parentheses
+            const ipcLevel = data.alert_level_ipc;
+            const scenarioDetail = formatIpcCriteria(data.alert_level_detail);
+            const ipcDisplayText = scenarioDetail ? `${ipcLevel} (${scenarioDetail})` : ipcLevel;
+
+            if (ipcLevel) {
+                const cls = 'alert-' + ipcLevel.replace(' ', '-');
+                document.getElementById('detail-ipc').innerHTML = `<span class="alert-badge ${cls}">${ipcDisplayText}</span>`;
+            } else {
+                document.getElementById('detail-ipc').innerHTML = '-';
+            }
+
             document.getElementById('detail-hs-date').textContent = formatDate(data.hotspot_date);
             document.getElementById('detail-ipc-type').textContent = data.ipc_type || '-';
 

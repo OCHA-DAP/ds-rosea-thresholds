@@ -117,28 +117,34 @@ def _classify_row(row):
     D3 = row.get("pt_change_3+", np.nan)
     D4 = row.get("pt_change_4+", np.nan)
 
-    very_high_severe = PP4 >= VH_S_POP_4
-    very_high_deteriorating = P3 >= VH_D_PR_3 and (
-        pd.notna(D4) and D4 >= VH_D_IN_4 * 100
-    )
-    high_severe = PP4 >= H_S_POP_4
-    high_deteriorating = P3 >= H_D_PR_3 and (pd.notna(D3) and D3 >= H_D_IN_3 * 100)
-    medium = (P3 >= M_PR_3) or (PP4 >= M_POP_4)
+    # Emergency scenario (absolute population thresholds)
+    emergency_very_high = PP4 >= VH_S_POP_4
+    emergency_high = PP4 >= H_S_POP_4
+    emergency_medium = PP4 >= M_POP_4
 
-    if very_high_severe and very_high_deteriorating:
-        return "very high - all criteria"
-    elif very_high_severe:
+    # Crisis scenario (proportion + deterioration thresholds)
+    crisis_very_high = P3 >= VH_D_PR_3 and (pd.notna(D4) and D4 >= VH_D_IN_4 * 100)
+    crisis_high = P3 >= H_D_PR_3 and (pd.notna(D3) and D3 >= H_D_IN_3 * 100)
+    crisis_medium = P3 >= M_PR_3
+
+    if emergency_very_high and crisis_very_high:
+        return "very high - both"
+    elif emergency_very_high:
         return "very high - emergency"
-    elif very_high_deteriorating:
-        return "very high - deteriorating"
-    elif high_severe and high_deteriorating:
-        return "high - all criteria"
-    elif high_severe:
+    elif crisis_very_high:
+        return "very high - crisis"
+    elif emergency_high and crisis_high:
+        return "high - both"
+    elif emergency_high:
         return "high - emergency"
-    elif high_deteriorating:
-        return "high - deteriorating"
-    elif medium:
-        return "medium"
+    elif crisis_high:
+        return "high - crisis"
+    elif emergency_medium and crisis_medium:
+        return "medium - both"
+    elif emergency_medium:
+        return "medium - emergency"
+    elif crisis_medium:
+        return "medium - crisis"
     return "low"
 
 
