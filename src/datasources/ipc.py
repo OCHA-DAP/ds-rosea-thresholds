@@ -145,7 +145,7 @@ def _classify_row(row):
         return "medium - emergency"
     elif crisis_medium:
         return "medium - crisis"
-    return "low"
+    return "low - both"
 
 
 def _transform_wide(df):
