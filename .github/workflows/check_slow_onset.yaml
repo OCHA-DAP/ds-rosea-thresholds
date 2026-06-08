@@ -20,8 +20,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: main
       - uses: astral-sh/setup-uv@v5
       - name: Run monitoring check
         env:
@@ -53,9 +51,9 @@ jobs:
           BASE_BRANCH="main"
           if [ "$FORCE_TRIGGER" = "true" ]; then
             LABELS="$LABELS,test"
-            # Create a new base branch off main for testing
+            # Create a new base branch off the checked-out ref for testing
             BASE_BRANCH="test-base-$(date +%Y%m%d-%H%M%S)"
-            git branch "$BASE_BRANCH" main
+            git branch "$BASE_BRANCH" HEAD~1
             git push origin "$BASE_BRANCH"
           fi
 
