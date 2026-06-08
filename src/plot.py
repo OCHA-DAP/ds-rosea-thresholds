@@ -164,7 +164,7 @@ def summary_table(df, changes_df=None):
             locations=gt_loc.body(),
         )
         .tab_style(
-            style=style.css("vertical-align: top;"),
+            style=style.css("vertical-align: top; padding-right: 1em;"),
             locations=gt_loc.stub(),
         )
         .tab_header(title=md("Alert status by country: ASAP + IPC"))
@@ -178,7 +178,7 @@ def summary_table(df, changes_df=None):
             )
         )
         .tab_source_note(source_note=html(f"Updated {cur.strftime('%-d %b %Y')}."))
-        .tab_options(table_font_size="16px")
+        .tab_options(table_font_size="16px", stub_border_style="hidden")
     )
 
     return gt
