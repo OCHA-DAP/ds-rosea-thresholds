@@ -2,6 +2,24 @@ import pandas as pd
 from great_tables import GT, html, md, px, style
 from great_tables import loc as gt_loc
 
+_ALERT_COLORS = {
+    "very high": "#8B0000",
+    "high": "#DC143C",
+    "medium": "#FF8C00",
+    "low": "#2E8B57",
+}
+
+
+def _alert_badge(alert_level):
+    if pd.isna(alert_level):
+        return "—"
+    color = _ALERT_COLORS.get(str(alert_level).lower(), "#999")
+    label = str(alert_level).title()
+    return (
+        f'<span style="background-color:{color};color:white;padding:2px 10px;'
+        f'border-radius:4px;font-weight:bold;display:inline-block">{label}</span>'
+    )
+
 
 def ipc_table(df, title):
     cur = pd.Timestamp.now()
@@ -54,8 +72,8 @@ def summary_table(df, changes_df=None):
 
     # Combine date columns into a range
     df_display["ipc_date_range"] = (
-        df_display["ipc_start_date"].dt.strftime("%-d %b %Y")
-        + " - "
+        df_display["ipc_start_date"].dt.strftime("%-d %b")
+        + " – "
         + df_display["ipc_end_date"].dt.strftime("%-d %b %Y")
     )
 
@@ -72,45 +90,60 @@ def summary_table(df, changes_df=None):
                     new_val = changes_df.loc[idx, (col, "self")]
                     try:
                         if severity_order[old_val] < severity_order[new_val]:
-                            df_display.loc[idx, "country"] += (
-                                ' <span style="color: red;">▲</span>'
-                            )
+                            df_display.loc[idx, "country"] += " ↑"
                         elif severity_order[old_val] > severity_order[new_val]:
-                            df_display.loc[idx, "country"] += (
-                                ' <span style="color: green;">▼</span>'
-                            )
+                            df_display.loc[idx, "country"] += " ↓"
                     except KeyError as e:
                         print(f"No change in alert level for {idx}: {e}")
                         break
                     break
 
-    gt = (
-        GT(
-            df_display.drop(
-                columns=["hotspot_comment", "iso3", "ipc_start_date", "ipc_end_date"]
-            ),
-            rowname_col="country",
-        )
-        .cols_label(
-            alert_level_hs=html("Hotspot Alert Level"),
-            alert_level_ipc=html("IPC Alert Level"),
-            max_alert_level=html("Maximum Alert Level"),
-            ipc_type=html("IPC Projection"),
-            ipc_date_range=html("IPC Period"),
-            hotspot_date=html("Hotspot Date"),
-        )
-        .fmt_date(
-            columns=["hotspot_date", "ipc_end_date", "ipc_start_date"],
-            date_style="day_m_year",
-        )
+    # Build combined HTML display columns
+    def make_asap_cell(row):
+        badge = _alert_badge(row["alert_level_hs"])
+        if pd.isna(row["hotspot_date"]):
+            return badge
+        date_str = row["hotspot_date"].strftime("%-d %b %Y")
+        return f'{badge}<br><span style="color:#555;font-size:0.85em">{date_str}</span>'
+
+    def make_ipc_cell(row):
+        if pd.isna(row["alert_level_ipc"]):
+            return "—"
+        badge = _alert_badge(row["alert_level_ipc"])
+        parts = []
+        if pd.notna(row["ipc_type"]):
+            parts.append(str(row["ipc_type"]))
+        if pd.notna(row["ipc_date_range"]):
+            parts.append(str(row["ipc_date_range"]))
+        sub = " · ".join(parts)
+        if sub:
+            return f'{badge}<br><span style="color:#555;font-size:0.85em">{sub}</span>'
+        return badge
+
+    df_display["max_badge"] = df_display["max_alert_level"].apply(_alert_badge)
+    df_display["asap_display"] = df_display.apply(make_asap_cell, axis=1)
+    df_display["ipc_display"] = df_display.apply(make_ipc_cell, axis=1)
+
+    gt = GT(
+        df_display[["country", "max_badge", "asap_display", "ipc_display"]],
+        rowname_col="country",
+    ).cols_label(
+        max_badge=html("Max alert"),
+        asap_display=html("ASAP hotspot"),
+        ipc_display=html("IPC"),
     )
 
     # Highlight changed cells
+    col_map = {
+        "max_alert_level": "max_badge",
+        "alert_level_hs": "asap_display",
+        "alert_level_ipc": "ipc_display",
+    }
     if changes_df is not None:
-        for col in changes_df.columns.get_level_values(0).unique():
-            if col in df.columns:
-                # Only highlight rows where at least one value is not NaN
-                mask = changes_df[col].notna().any(axis=1)
+        for orig_col in changes_df.columns.get_level_values(0).unique():
+            display_col = col_map.get(orig_col)
+            if display_col:
+                mask = changes_df[orig_col].notna().any(axis=1)
                 rows_to_highlight = changes_df.index[mask].tolist()
 
                 if rows_to_highlight:
@@ -120,50 +153,23 @@ def summary_table(df, changes_df=None):
                                 sides="all", color="black", style="solid", weight=px(3)
                             )
                         ],
-                        locations=gt_loc.body(columns=[col], rows=rows_to_highlight),
+                        locations=gt_loc.body(
+                            columns=[display_col], rows=rows_to_highlight
+                        ),
                     )
 
-    # Alert level colors and header
     gt = (
-        gt.tab_style(
-            style=[style.fill(color="#8B0000"), style.text(color="white")],
-            locations=gt_loc.body(
-                columns=["max_alert_level"],
-                rows=lambda df_table: (df_table["max_alert_level"] == "very high"),
-            ),
-        )
-        .tab_style(
-            style=[style.fill(color="#DC143C"), style.text(color="white")],
-            locations=gt_loc.body(
-                columns=["max_alert_level"],
-                rows=lambda df_table: (df_table["max_alert_level"] == "high"),
-            ),
-        )
-        .tab_style(
-            style=[style.fill(color="#FF8C00"), style.text(color="white")],
-            locations=gt_loc.body(
-                columns=["max_alert_level"],
-                rows=lambda df_table: (df_table["max_alert_level"] == "medium"),
-            ),
-        )
-        .tab_style(
-            style=[style.fill(color="#2E8B57"), style.text(color="white")],
-            locations=gt_loc.body(
-                columns=["max_alert_level"],
-                rows=lambda df_table: (df_table["max_alert_level"] == "low"),
-            ),
-        )
-        .tab_header(
-            title=md(
-                "Alert Summary, Per Country. Combined ASAP Hotspot and IPC Alerts."
-            ),
-        )
+        gt.tab_header(title=md("Alert status by country: ASAP + IPC"))
         .tab_source_note(
-            source_note=html(f"Updated as of {cur.strftime('%-d %b %Y')}.")
+            source_note=html(
+                "↑ Alert level increased &nbsp;&nbsp;"
+                "↓ Alert level decreased &nbsp;&nbsp;"
+                '<span style="border:2px solid black;padding:0 4px">&nbsp;&nbsp;</span>'
+                " Updated data"
+            )
         )
-        .tab_options(
-            table_font_size="16px",
-        )
+        .tab_source_note(source_note=html(f"Updated {cur.strftime('%-d %b %Y')}."))
+        .tab_options(table_font_size="16px")
     )
 
     return gt
