@@ -1,5 +1,5 @@
 import pandas as pd
-from great_tables import GT, html, md, px, style
+from great_tables import GT, html, md, style
 from great_tables import loc as gt_loc
 
 _ALERT_COLORS = {
@@ -10,14 +10,15 @@ _ALERT_COLORS = {
 }
 
 
-def _alert_badge(alert_level):
+def _alert_badge(alert_level, bordered=False):
     if pd.isna(alert_level):
         return "—"
     color = _ALERT_COLORS.get(str(alert_level).lower(), "#999")
     label = str(alert_level).title()
+    border = "border:2px solid red;" if bordered else ""
     return (
         f'<span style="background-color:{color};color:white;padding:2px 10px;'
-        f'border-radius:4px;font-weight:bold;display:inline-block">{label}</span>'
+        f'border-radius:4px;font-weight:bold;display:inline-block;{border}">{label}</span>'
     )
 
 
@@ -98,9 +99,18 @@ def summary_table(df, changes_df=None):
                         break
                     break
 
-    # Build combined HTML display columns
+    # Determine which cells changed so the badge border can be applied in HTML
+    changed_rows_by_col = {}
+    if changes_df is not None:
+        for orig_col in ["max_alert_level", "alert_level_hs", "alert_level_ipc"]:
+            if orig_col in changes_df.columns.get_level_values(0):
+                mask = changes_df[orig_col].notna().any(axis=1)
+                changed_rows_by_col[orig_col] = set(changes_df.index[mask].tolist())
+
+    # Build combined HTML display columns (row.name is the original df index)
     def make_asap_cell(row):
-        badge = _alert_badge(row["alert_level_hs"])
+        bordered = row.name in changed_rows_by_col.get("alert_level_hs", set())
+        badge = _alert_badge(row["alert_level_hs"], bordered=bordered)
         if pd.isna(row["hotspot_date"]):
             return badge
         date_str = row["hotspot_date"].strftime("%-d %b %Y")
@@ -109,7 +119,8 @@ def summary_table(df, changes_df=None):
     def make_ipc_cell(row):
         if pd.isna(row["alert_level_ipc"]):
             return "—"
-        badge = _alert_badge(row["alert_level_ipc"])
+        bordered = row.name in changed_rows_by_col.get("alert_level_ipc", set())
+        badge = _alert_badge(row["alert_level_ipc"], bordered=bordered)
         parts = []
         if pd.notna(row["ipc_type"]):
             parts.append(str(row["ipc_type"]))
@@ -120,51 +131,49 @@ def summary_table(df, changes_df=None):
             return f'{badge}<br><span style="color:#555;font-size:0.85em">{sub}</span>'
         return badge
 
-    df_display["max_badge"] = df_display["max_alert_level"].apply(_alert_badge)
+    df_display["max_badge"] = df_display.apply(
+        lambda row: _alert_badge(
+            row["max_alert_level"],
+            bordered=row.name in changed_rows_by_col.get("max_alert_level", set()),
+        ),
+        axis=1,
+    )
     df_display["asap_display"] = df_display.apply(make_asap_cell, axis=1)
     df_display["ipc_display"] = df_display.apply(make_ipc_cell, axis=1)
 
-    gt = GT(
-        df_display[["country", "max_badge", "asap_display", "ipc_display"]],
-        rowname_col="country",
-    ).cols_label(
-        max_badge=html("Max alert"),
-        asap_display=html("ASAP hotspot"),
-        ipc_display=html("IPC"),
+    # Sort by decreasing max alert level
+    _severity = {"very high": 3, "high": 2, "medium": 1, "low": 0}
+    df_display["_sort_key"] = df_display["max_alert_level"].map(_severity).fillna(-1)
+    df_display = df_display.sort_values("_sort_key", ascending=False).drop(
+        columns=["_sort_key"]
     )
 
-    # Highlight changed cells
-    col_map = {
-        "max_alert_level": "max_badge",
-        "alert_level_hs": "asap_display",
-        "alert_level_ipc": "ipc_display",
-    }
-    if changes_df is not None:
-        for orig_col in changes_df.columns.get_level_values(0).unique():
-            display_col = col_map.get(orig_col)
-            if display_col:
-                mask = changes_df[orig_col].notna().any(axis=1)
-                rows_to_highlight = changes_df.index[mask].tolist()
-
-                if rows_to_highlight:
-                    gt = gt.tab_style(
-                        style=[
-                            style.borders(
-                                sides="all", color="black", style="solid", weight=px(3)
-                            )
-                        ],
-                        locations=gt_loc.body(
-                            columns=[display_col], rows=rows_to_highlight
-                        ),
-                    )
-
     gt = (
-        gt.tab_header(title=md("Alert status by country: ASAP + IPC"))
+        GT(
+            df_display[["country", "max_badge", "asap_display", "ipc_display"]],
+            rowname_col="country",
+        )
+        .cols_label(
+            max_badge=html("Max alert"),
+            asap_display=html("ASAP hotspot"),
+            ipc_display=html("IPC"),
+        )
+        .cols_width(max_badge="220px", asap_display="220px", ipc_display="220px")
+        .tab_style(
+            style=style.css("vertical-align: top;"),
+            locations=gt_loc.body(),
+        )
+        .tab_style(
+            style=style.css("vertical-align: top;"),
+            locations=gt_loc.stub(),
+        )
+        .tab_header(title=md("Alert status by country: ASAP + IPC"))
         .tab_source_note(
             source_note=html(
                 "↑ Alert level increased &nbsp;&nbsp;"
                 "↓ Alert level decreased &nbsp;&nbsp;"
-                '<span style="border:2px solid black;padding:0 4px">&nbsp;&nbsp;</span>'
+                '<span style="border:2px solid red;padding:0 4px;border-radius:4px">'
+                "&nbsp;&nbsp;</span>"
                 " Updated data"
             )
         )
