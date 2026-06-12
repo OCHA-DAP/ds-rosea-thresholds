@@ -185,6 +185,10 @@ def summary_table(df, changes_df=None):
             )
         )
         .tab_source_note(source_note=html(f"Updated {cur.strftime('%-d %b %Y')}."))
+        .tab_style(
+            style=style.css("padding-top: 8px;"),
+            locations=gt_loc.source_notes(),
+        )
         .tab_options(table_font_size="16px", stub_border_style="hidden")
     )
 
