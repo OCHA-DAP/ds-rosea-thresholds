@@ -15,7 +15,7 @@ def _alert_badge(alert_level, bordered=False):
         return "—"
     color = _ALERT_COLORS.get(str(alert_level).lower(), "#999")
     label = str(alert_level).title()
-    border = "border:2px solid red;" if bordered else ""
+    border = "border:1px solid white;box-shadow:0 0 0 3px black;" if bordered else ""
     return (
         f'<span style="background-color:{color};color:white;padding:2px 10px;'
         f'border-radius:4px;font-weight:bold;display:inline-block;{border}">{label}</span>'
@@ -114,7 +114,8 @@ def summary_table(df, changes_df=None):
         if pd.isna(row["hotspot_date"]):
             return badge
         date_str = row["hotspot_date"].strftime("%-d %b %Y")
-        return f'{badge}<br><span style="color:#555;font-size:0.85em">{date_str}</span>'
+        sub_style = "display:block;color:#555;font-size:0.85em;margin-top:2px"
+        return f'{badge}<span style="{sub_style}">{date_str}</span>'
 
     def make_ipc_cell(row):
         if pd.isna(row["alert_level_ipc"]):
@@ -127,8 +128,9 @@ def summary_table(df, changes_df=None):
         if pd.notna(row["ipc_date_range"]):
             parts.append(str(row["ipc_date_range"]))
         sub = " · ".join(parts)
+        sub_style = "display:block;color:#555;font-size:0.85em;margin-top:2px"
         if sub:
-            return f'{badge}<br><span style="color:#555;font-size:0.85em">{sub}</span>'
+            return f'{badge}<span style="{sub_style}">{sub}</span>'
         return badge
 
     df_display["max_badge"] = df_display.apply(
@@ -158,7 +160,7 @@ def summary_table(df, changes_df=None):
             asap_display=html("ASAP hotspot"),
             ipc_display=html("IPC"),
         )
-        .cols_width(max_badge="220px", asap_display="220px", ipc_display="220px")
+        .cols_width(max_badge="240px", asap_display="240px", ipc_display="240px")
         .tab_style(
             style=style.css("vertical-align: top;"),
             locations=gt_loc.body(),
@@ -168,11 +170,16 @@ def summary_table(df, changes_df=None):
             locations=gt_loc.stub(),
         )
         .tab_header(title=md("Alert status by country: ASAP + IPC"))
+        .tab_style(
+            style=style.css("text-align: left;"),
+            locations=gt_loc.title(),
+        )
         .tab_source_note(
             source_note=html(
                 "↑ Alert level increased &nbsp;&nbsp;"
                 "↓ Alert level decreased &nbsp;&nbsp;"
-                '<span style="border:2px solid red;padding:0 4px;border-radius:4px">'
+                '<span style="border:1px solid white;box-shadow:0 0 0 3px black;'
+                'padding:0 4px;border-radius:4px">'
                 "&nbsp;&nbsp;</span>"
                 " Updated data"
             )
